@@ -1,12 +1,17 @@
-// Signal Lost -- a branching sci-fi visual novel built on fn.js + fn.util.js. Scene is the whole
-// story: each row is one beat (key/title/text/choices), seeded once in app.js like idle-hunter's
-// Ground rows, but -- unlike Ground -- genuinely CRUD'd here: the Editor screen (behind an
-// "Editor" button) is exactly the standard `list` + popup/form/save-btn pattern every other
-// example uses, so writing your own story means clicking a row (or "+ New Scene") and editing it
-// like any other resource. Scenes reference each other by their own `key` field (a stable string
-// like 'bridge_solo'), not by fn.data's auto-increment id, since the graph is hand- or
-// reader-written and needs stable targets for `choice.next` -- goToScene looks a scene up by that
-// key via fn.util.selectFlat + .find rather than fn.data.select's id lookup. `choices` is stored
+// Branchtale -- a platform for branching visual novels built on fn.js + fn.util.js, not just one
+// story: the Library screen lists every Story a reader has added ("+ New Story" makes one), and
+// picking a card opens that story's own Reader/Editor/Endings, all scoped to it. Story is a plain
+// CRUD resource (title/author/description); Scene is the whole story graph underneath one Story
+// row -- each row is one beat (key/title/text/choices) plus a `storyId` scoping it to its Story,
+// since a scene's own `key` (see below) is only unique *within* a story, not globally. The
+// first story ("Signal Lost") is seeded once in app.js like idle-hunter's Ground rows, but --
+// unlike Ground -- genuinely CRUD'd here: the Editor screen (behind an "Editor" button) is
+// exactly the standard `list` + popup/form/save-btn pattern every other example uses, so writing
+// your own story means clicking a row (or "+ New Scene") and editing it like any other resource.
+// Scenes reference each other by their own `key` field (a stable string like 'bridge_solo'), not
+// by fn.data's auto-increment id, since the graph is hand- or reader-written and needs stable
+// targets for `choice.next` -- goToScene looks a scene up by that key (scoped to currentStoryId)
+// via fn.util.selectFlat + .find rather than fn.data.select's id lookup. `choices` is stored
 // as a real array (same as every other resource field), but its form field carries a
 // `column.form.json: true` flag this file's own `form` layout understands: populate the textarea
 // with `JSON.stringify(value, null, 2)` instead of the raw value, and `JSON.parse` it back on
@@ -28,9 +33,10 @@
 // playthroughs and it keeps growing, genuinely worth paging through (list/pagination, unchanged
 // from the reference implementation) once a few playthroughs pile up. That log lives behind an
 // "Endings" popup rather than a tab bar, same reasoning the Editor toggle uses instead of a tab
-// bar of its own: this app only ever shows one of three views at a time (story/editor/endings),
-// and only Editor is substantial enough to need its own screen rather than a popup. Player is
-// CRUD'd through the usual popup/form/save-btn only for its name (the Rename button).
+// bar of its own: this app only ever shows one of three screens at a time (library/story/editor),
+// and only Editor and Library are substantial enough to need their own screen rather than a
+// popup. Player is CRUD'd through the usual popup/form/save-btn only for its name (the Rename
+// button), and Story through it for everything (title/author/description), from the Library.
 // Multi-language content reuses that same `column.form.json` mechanism rather than adding new
 // machinery: `title`/`text`/`endingType`/`choices` are stored as `{lang: value}` objects (e.g.
 // `title: {en: "...", ko: "..."}`), authored together as one JSON blob per field in one save --
@@ -44,12 +50,14 @@
     var fn = window.fn;
 
     var playerResource = null;
+    var storyResource = null;
     var endingResource = null;
     var sceneResource = null;
     var playerId = null;
     var rootArea = null;
+    var currentStoryId = null;
     var currentSceneKey = 'start';
-    var mode = 'story';
+    var mode = 'library';
     var currentLang = 'en';
     var langLabels = { en : 'English', ko : '한국어' };
 
@@ -71,7 +79,7 @@
     }
 
     function findScene(key) {
-        return fn.util.selectFlat({ key : 'scene' }).find(function(scene) { return scene.key === key; });
+        return fn.util.selectFlat({ key : 'scene' }).find(function(scene) { return scene.storyId === currentStoryId && scene.key === key; });
     }
 
     function refreshScreen() {
@@ -88,13 +96,59 @@
         refreshScreen();
     }
 
+    function openStory(storyId) {
+        currentStoryId = storyId;
+        currentSceneKey = 'start';
+        mode = 'story';
+        refreshScreen();
+    }
+
+    function goToLibrary() {
+        currentStoryId = null;
+        mode = 'library';
+        refreshScreen();
+    }
+
+    function seedStartScene(storyId) {
+        fn.data.insert({
+            key : 'scene',
+            data : {
+                storyId : storyId,
+                key : 'start',
+                title : { en : 'Untitled' },
+                text : { en : 'Write your first scene here.' },
+                endingType : { en : '' },
+                choices : { en : [] },
+            },
+        });
+    }
+
+    function deleteStory(storyId) {
+        if (!confirm('Delete this story and all its scenes? This cannot be undone.')) {
+            return;
+        }
+        fn.data.delete({ key : 'story', id : storyId });
+        fn.data.select({ key : 'scene' }).filter(function(row) { return row.data.storyId === storyId; }).forEach(function(row) {
+            fn.data.delete({ key : 'scene', id : row.id });
+        });
+        fn.data.select({ key : 'ending' }).filter(function(row) { return row.data.storyId === storyId; }).forEach(function(row) {
+            fn.data.delete({ key : 'ending', id : row.id });
+        });
+        refreshScreen();
+    }
+
+    function slugify(title) {
+        return (title || 'story').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'story';
+    }
+
     function exportStory() {
-        var scenes = fn.util.selectFlat({ key : 'scene' }).map(function(s) {
+        var story = fn.data.select({ key : 'story', id : currentStoryId });
+        var scenes = fn.util.selectFlat({ key : 'scene' }).filter(function(s) { return s.storyId === currentStoryId; }).map(function(s) {
             return { key : s.key, title : s.title, text : s.text, endingType : s.endingType || {}, choices : s.choices };
         });
         var blob = new Blob([ JSON.stringify(scenes, null, 2) ], { type : 'application/json' });
         var url = URL.createObjectURL(blob);
-        var a = fn.element.create({ tagName : 'a', attribute : { href : url, download : 'signal-lost-story.json' } });
+        var a = fn.element.create({ tagName : 'a', attribute : { href : url, download : slugify(story.data.title) + '.json' } });
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -115,13 +169,13 @@
                 alert('Expected a JSON array of scenes, including one with key "start".');
                 return;
             }
-            fn.data.select({ key : 'scene' }).forEach(function(row) {
+            fn.data.select({ key : 'scene' }).filter(function(row) { return row.data.storyId === currentStoryId; }).forEach(function(row) {
                 fn.data.delete({ key : 'scene', id : row.id });
             });
             parsed.forEach(function(scene) {
                 fn.data.insert({
                     key : 'scene',
-                    data : { key : scene.key, title : scene.title, text : scene.text, endingType : scene.endingType || {}, choices : scene.choices || {} },
+                    data : { storyId : currentStoryId, key : scene.key, title : scene.title, text : scene.text, endingType : scene.endingType || {}, choices : scene.choices || {} },
                 });
             });
             currentSceneKey = 'start';
@@ -136,7 +190,7 @@
     // reported by title. Purely informational (see the file header) -- never blocks save/import.
     function findCycles() {
         var byKey = {};
-        fn.util.selectFlat({ key : 'scene' }).forEach(function(s) { byKey[s.key] = s; });
+        fn.util.selectFlat({ key : 'scene' }).filter(function(s) { return s.storyId === currentStoryId; }).forEach(function(s) { byKey[s.key] = s; });
 
         var cycles = [];
         var visited = {};
@@ -209,7 +263,7 @@
         var scene = findScene(key);
         var choices = getLocalized(scene.choices) || [];
         if (choices.length === 0) {
-            fn.data.insert({ key : 'ending', data : { endingTitle : getLocalized(scene.title), endingType : getLocalized(scene.endingType) } });
+            fn.data.insert({ key : 'ending', data : { storyId : currentStoryId, endingTitle : getLocalized(scene.title), endingType : getLocalized(scene.endingType) } });
         }
         refreshScreen();
     }
@@ -232,7 +286,7 @@
             name : 'popup',
             title : 'Endings Reached',
             render : function(popupEl) {
-                var datas = fn.util.selectFlat({ key : 'ending' }).slice().reverse();
+                var datas = fn.util.selectFlat({ key : 'ending' }).filter(function(e) { return e.storyId === currentStoryId; }).slice().reverse();
                 fn.component.create({ name : 'list', resource : endingResource, datas : datas, readonly : true, parent : popupEl.content });
             },
         });
@@ -408,11 +462,10 @@
             };
 
             el.save = function() {
-                var data = el.getData();
+                var data = Object.assign({}, el._.data, el.getData());
+                delete data.id;
                 if (el._.data.id !== undefined) {
-                    var merged = Object.assign({}, el._.data, data);
-                    delete merged.id;
-                    return fn.data.update({ key : el._.resource.key, id : el._.data.id, data : merged });
+                    return fn.data.update({ key : el._.resource.key, id : el._.data.id, data : data });
                 }
                 return fn.data.insert({ key : el._.resource.key, data : data });
             };
@@ -567,15 +620,98 @@
     });
 
     fn.component.layout.set({
+        name : 'library',
+        layout : function() {
+            var player = getPlayer();
+            var wrap = fn.element.create({ tagName : 'div', style : { padding : '20px' } });
+
+            var header = fn.element.create({ tagName : 'div', style : { display : 'flex', justifyContent : 'space-between', alignItems : 'center', marginBottom : '20px' }, parent : wrap });
+            fn.element.create({ tagName : 'div', text : 'Branchtale', style : { fontWeight : '700', fontSize : '20px', color : accent }, parent : header });
+            var btnRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px', alignItems : 'center' }, parent : header });
+            fn.element.create({ tagName : 'div', text : player.data.name, style : { fontSize : '12px', color : dim }, parent : btnRow });
+            fn.element.create({
+                tagName : 'button', attribute : { type : 'button' }, text : 'Rename',
+                style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                event : { click : openRename }, parent : btnRow,
+            });
+
+            fn.util.newButton({
+                text : '+ New Story', title : 'New Story', resource : storyResource,
+                data : { author : player.data.name },
+                caller : { refresh : function(savedStory) {
+                    if (savedStory) {
+                        seedStartScene(savedStory.id);
+                        currentStoryId = savedStory.id;
+                        currentSceneKey = 'start';
+                        mode = 'editor';
+                    }
+                    refreshScreen();
+                } },
+                parent : wrap,
+                style : { padding : '10px 16px', width : '100%', marginBottom : '16px', background : accent, color : bg, border : 'none', borderRadius : '4px', fontWeight : '700', cursor : 'pointer' },
+            });
+
+            var stories = fn.util.selectFlat({ key : 'story' });
+            if (stories.length === 0) {
+                fn.element.create({ tagName : 'div', text : 'No stories yet. Click "+ New Story" to write one.', style : { color : dim, fontSize : '13px' }, parent : wrap });
+            }
+            stories.forEach(function(story) {
+                var card = fn.element.create({
+                    tagName : 'div',
+                    style : { padding : '14px', marginBottom : '10px', background : panelBg, border : '1px solid ' + dim, borderRadius : '6px', cursor : 'pointer' },
+                    event : { click : function() { openStory(story.id); } },
+                    parent : wrap,
+                });
+                var cardHeader = fn.element.create({ tagName : 'div', style : { display : 'flex', justifyContent : 'space-between', alignItems : 'flex-start' }, parent : card });
+                var titleCol = fn.element.create({ tagName : 'div', parent : cardHeader });
+                fn.element.create({ tagName : 'div', text : story.title, style : { fontWeight : '700', fontSize : '16px', color : accent }, parent : titleCol });
+                fn.element.create({ tagName : 'div', text : 'by ' + (story.author || 'Anonymous'), style : { fontSize : '11px', color : dim, marginTop : '2px' }, parent : titleCol });
+                fn.element.create({
+                    tagName : 'button', attribute : { type : 'button' }, text : 'Edit',
+                    style : { padding : '4px 10px', fontSize : '11px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                    event : { click : function(e) {
+                        e.stopPropagation();
+                        fn.component.create({
+                            name : 'popup',
+                            title : 'Edit Story',
+                            caller : { refresh : refreshScreen },
+                            render : function(popupEl) {
+                                fn.component.create({ name : 'form', resource : storyResource, data : story, parent : popupEl.content });
+                                fn.component.create({ name : 'save-btn', parent : popupEl.content });
+                                fn.element.create({
+                                    tagName : 'button', attribute : { type : 'button' }, text : 'Delete Story',
+                                    style : { padding : '8px 16px', marginTop : '8px', width : '100%', background : 'transparent', color : '#f28b82', border : '1px solid #f28b82', borderRadius : '4px', cursor : 'pointer' },
+                                    event : { click : function(e2) {
+                                        deleteStory(story.id);
+                                        e2.target.closest('.__popup').remove();
+                                    } },
+                                    parent : popupEl.content,
+                                });
+                            },
+                        });
+                    } },
+                    parent : cardHeader,
+                });
+                if (story.description) {
+                    fn.element.create({ tagName : 'div', text : story.description, style : { fontSize : '13px', color : text, marginTop : '8px' }, parent : card });
+                }
+            });
+
+            return wrap;
+        }
+    });
+
+    fn.component.layout.set({
         name : 'story',
         layout : function() {
             var player = getPlayer();
+            var story = fn.data.select({ key : 'story', id : currentStoryId });
             var scene = findScene(currentSceneKey);
             var choices = getLocalized(scene.choices) || [];
             var wrap = fn.element.create({ tagName : 'div', style : { padding : '20px' } });
 
             var header = fn.element.create({ tagName : 'div', style : { display : 'flex', justifyContent : 'space-between', alignItems : 'center', marginBottom : '20px' }, parent : wrap });
-            fn.element.create({ tagName : 'div', text : 'Reader: ' + player.data.name, style : { fontSize : '12px', color : dim }, parent : header });
+            fn.element.create({ tagName : 'div', text : story.data.title + ' -- Reader: ' + player.data.name, style : { fontSize : '12px', color : dim }, parent : header });
             var btnRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px', alignItems : 'center' }, parent : header });
             var langSelect = fn.element.create({
                 tagName : 'select',
@@ -587,6 +723,11 @@
                 fn.element.create({ tagName : 'option', attribute : { value : lang }, text : langLabels[lang] || lang, parent : langSelect });
             });
             langSelect.value = currentLang;
+            fn.element.create({
+                tagName : 'button', attribute : { type : 'button' }, text : 'Library',
+                style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                event : { click : goToLibrary }, parent : btnRow,
+            });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Editor',
                 style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
@@ -646,15 +787,22 @@
 
             var header = fn.element.create({ tagName : 'div', style : { display : 'flex', justifyContent : 'space-between', alignItems : 'center', marginBottom : '16px' }, parent : wrap });
             fn.element.create({ tagName : 'div', text : 'Story Editor', style : { fontWeight : '700', fontSize : '18px', color : accent }, parent : header });
+            var editorNav = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px' }, parent : header });
+            fn.element.create({
+                tagName : 'button', attribute : { type : 'button' }, text : 'Library',
+                style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                event : { click : goToLibrary }, parent : editorNav,
+            });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Back to Story',
                 style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
-                event : { click : closeEditor }, parent : header,
+                event : { click : closeEditor }, parent : editorNav,
             });
 
             var toolRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px', marginBottom : '16px', flexWrap : 'wrap', alignItems : 'center' }, parent : wrap });
             fn.util.newButton({
                 text : '+ New Scene', title : 'New Scene', resource : sceneResource,
+                data : { storyId : currentStoryId },
                 caller : { refresh : refreshScreen }, parent : toolRow,
                 style : { padding : '8px 12px', fontSize : '13px', background : accent, color : bg, border : 'none', borderRadius : '4px', fontWeight : '700', cursor : 'pointer' },
             });
@@ -676,7 +824,7 @@
                 parent : toolRow,
             });
 
-            var sceneDatas = fn.util.selectFlat({ key : 'scene' });
+            var sceneDatas = fn.util.selectFlat({ key : 'scene' }).filter(function(s) { return s.storyId === currentStoryId; });
             fn.component.create({ name : 'list', resource : sceneResource, datas : sceneDatas, caller : { refresh : refreshScreen }, pageSize : 8, parent : wrap });
 
             return wrap;
@@ -687,7 +835,8 @@
         name : 'screen',
         layout : function() {
             var wrap = fn.element.create({ tagName : 'div' });
-            fn.component.create({ name : mode === 'editor' ? 'editor' : 'story', parent : wrap });
+            var name = mode === 'editor' ? 'editor' : mode === 'story' ? 'story' : 'library';
+            fn.component.create({ name : name, parent : wrap });
             return wrap;
         }
     });
@@ -696,6 +845,7 @@
         name : 'game',
         layout : function(opt = {}) {
             playerResource = opt.playerResource;
+            storyResource = opt.storyResource;
             endingResource = opt.endingResource;
             sceneResource = opt.sceneResource;
             playerId = opt.playerId;
