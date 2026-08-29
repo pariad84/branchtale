@@ -58,7 +58,7 @@
         ],
     };
 
-    var scenes = [
+    var signalLostScenes = [
         {
             key : 'start',
             title : { en : 'Cold Awakening', ko : '차가운 각성' },
@@ -301,19 +301,213 @@
         },
     ];
 
-    if (fn.data.select({ key : 'story' }).length === 0) {
-        var signalLost = fn.data.insert({
-            key : 'story',
-            data : {
-                title : 'Signal Lost',
-                author : 'Claude',
-                description : 'A branching sci-fi visual novel about waking alone on a derelict ship.',
+    var lighthouseScenes = [
+        {
+            key : 'start',
+            title : { en : "The Lighthouse Keeper's Secret", ko : '등대지기의 비밀' },
+            text : {
+                en : "You've been sent to investigate the disappearance of lighthouse keeper Thomas Voss. The light has stood dark for the first time in forty years. His young assistant, Elena, waits at the dock, pale and evasive.",
+                ko : '등대지기 토마스 보스의 실종을 조사하러 파견되었다. 40년 만에 처음으로 등대의 불이 꺼져 있다. 부두에는 그의 젊은 조수 엘레나가 창백한 얼굴로, 뭔가를 숨기듯 기다리고 있다.',
             },
-        });
-        scenes.forEach(function(scene) {
-            fn.data.insert({ key : 'scene', data : Object.assign({ storyId : signalLost.id }, scene) });
+            endingType : { en : '', ko : '' },
+            choices : {
+                en : [
+                    { label : 'Question Elena immediately', next : 'question_elena' },
+                    { label : 'Search the lighthouse first', next : 'search_tower' },
+                ],
+                ko : [
+                    { label : '엘레나를 곧바로 심문한다', next : 'question_elena' },
+                    { label : '등대부터 수색한다', next : 'search_tower' },
+                ],
+            },
+        },
+        {
+            key : 'question_elena',
+            title : { en : "Elena's Story", ko : '엘레나의 이야기' },
+            text : {
+                en : '"He said he heard something down in the old storage cellar," Elena admits, her voice cracking. "Three nights ago. He went down with a lantern and never came back up. I didn\'t call anyone -- I was afraid they\'d blame me."',
+                ko : '"지하 창고에서 뭔가 소리가 들린다고 하셨어요." 엘레나가 갈라진 목소리로 털어놓는다. "사흘 전 밤이었어요. 랜턴을 들고 내려가시더니 다시 올라오지 않으셨어요. 아무한테도 알리지 못했어요 -- 제 탓이라고 할까 봐 무서웠거든요."',
+            },
+            endingType : { en : '', ko : '' },
+            choices : {
+                en : [
+                    { label : 'Ask about the cellar', next : 'cellar_history' },
+                    { label : 'Go down to the cellar yourself', next : 'cellar_descent' },
+                ],
+                ko : [
+                    { label : '지하 창고에 대해 더 묻는다', next : 'cellar_history' },
+                    { label : '직접 지하 창고로 내려간다', next : 'cellar_descent' },
+                ],
+            },
+        },
+        {
+            key : 'search_tower',
+            title : { en : 'The Torn Log', ko : '찢겨진 일지' },
+            text : {
+                en : 'The spiral stairs creak underfoot. At the top, the great lens sits dark and dusty -- but the logbook on the desk is open to an entry from four nights ago, cut off mid-sentence: "The knocking has started again. I think it\'s finally --" The rest of the page is torn away.',
+                ko : '나선형 계단이 발밑에서 삐걱거린다. 꼭대기에 오르자 거대한 렌즈는 어둡고 먼지투성이다 -- 하지만 책상 위 항해일지는 나흘 전 날짜에 펼쳐진 채, 문장이 중간에 끊겨 있다. "다시 노크 소리가 들리기 시작했다. 마침내 --" 나머지 페이지는 찢겨 나가고 없다.',
+            },
+            endingType : { en : '', ko : '' },
+            choices : {
+                en : [
+                    { label : 'Look for the missing page', next : 'torn_page' },
+                    { label : 'Go find Elena and ask what she knows', next : 'question_elena' },
+                ],
+                ko : [
+                    { label : '없어진 페이지를 찾아본다', next : 'torn_page' },
+                    { label : '엘레나를 찾아가 아는 것을 묻는다', next : 'question_elena' },
+                ],
+            },
+        },
+        {
+            key : 'torn_page',
+            title : { en : 'What the Crates Held', ko : '상자 속에 든 것' },
+            text : {
+                en : 'You find scraps of the torn page stuffed into a desk drawer, along with a rusted key labeled CELLAR. Piecing the fragments together, one phrase survives: "...they\'re not empty. The crates were never empty."',
+                ko : '책상 서랍 속에서 찢긴 페이지 조각들과, "지하 창고"라고 적힌 녹슨 열쇠 하나를 발견한다. 조각을 맞춰보니 한 문장이 남아있다. "...비어있지 않다. 그 상자들은 한 번도 비어있던 적이 없었다."',
+            },
+            endingType : { en : '', ko : '' },
+            choices : {
+                en : [
+                    { label : 'Take the key and go to the cellar', next : 'cellar_descent' },
+                    { label : 'Confront Elena with what you found', next : 'confront_elena' },
+                ],
+                ko : [
+                    { label : '열쇠를 챙겨 지하 창고로 향한다', next : 'cellar_descent' },
+                    { label : '발견한 것을 들고 엘레나를 추궁한다', next : 'confront_elena' },
+                ],
+            },
+        },
+        {
+            key : 'cellar_history',
+            title : { en : 'Old Business', ko : '오래된 일' },
+            text : {
+                en : '"The cellar\'s been sealed since before I started," Elena says. "Thomas told me never to go down there. Said it was \'old business, best left old.\'" Her hands are shaking.',
+                ko : '"저 오기 전부터 봉인되어 있던 곳이에요." 엘레나가 말한다. "토마스 아저씨는 절대 내려가지 말라고 하셨어요. \'묵혀둔 일은 묵혀두는 게 낫다\'고요." 그녀의 손이 떨리고 있다.',
+            },
+            endingType : { en : '', ko : '' },
+            choices : {
+                en : [
+                    { label : 'Reassure her and go down alone', next : 'cellar_descent' },
+                    { label : 'Insist she come with you', next : 'cellar_together' },
+                ],
+                ko : [
+                    { label : '그녀를 안심시키고 혼자 내려간다', next : 'cellar_descent' },
+                    { label : '함께 가자고 설득한다', next : 'cellar_together' },
+                ],
+            },
+        },
+        {
+            key : 'confront_elena',
+            title : { en : 'What the Light Signaled', ko : '불빛이 신호한 것' },
+            text : {
+                en: '"The lighthouse hasn\'t just been a lighthouse in a long time," Elena whispers, her composure finally breaking. "Thomas used the light to signal boats -- boats that weren\'t supposed to be seen. I found out. I think that\'s why he\'s gone."',
+                ko : '"이 등대는 오래전부터 그냥 등대가 아니었어요." 엘레나가 마침내 무너지듯 속삭인다. "토마스 아저씨는 이 불빛으로 배들에게 신호를 보냈어요 -- 보여서는 안 되는 배들에게요. 제가 그걸 알아채서, 그래서 사라진 것 같아요."',
+            },
+            endingType : { en : '', ko : '' },
+            choices : {
+                en : [
+                    { label : 'Go to the cellar to find proof', next : 'cellar_descent' },
+                    { label : 'Report it and wait for the coast guard', next : 'end_wait_coastguard' },
+                ],
+                ko : [
+                    { label : '증거를 찾으러 지하 창고로 간다', next : 'cellar_descent' },
+                    { label : '신고하고 해안경비대를 기다린다', next : 'end_wait_coastguard' },
+                ],
+            },
+        },
+        {
+            key : 'cellar_together',
+            title : { en : 'The Second Door', ko : '두 번째 문' },
+            text : {
+                en : 'You descend together. The cellar is lined with crates stamped with a shipping company that went bankrupt a decade ago -- one crate, pried open, packed with something far more valuable than fish. At the back, a second door stands ajar, leading further down into rock.',
+                ko : '함께 내려간다. 지하 창고에는 10년 전 파산한 해운회사의 낙인이 찍힌 상자들이 늘어서 있다 -- 뜯어진 상자 하나에는 생선보다 훨씬 값나가는 무언가가 가득하다. 안쪽에는 바위 속으로 더 깊이 이어지는 두 번째 문이 살짝 열려 있다.',
+            },
+            endingType : { en : '', ko : '' },
+            choices : {
+                en : [
+                    { label : 'Go through the second door', next : 'end_truth' },
+                    { label : 'Seal the cellar and leave with Elena', next : 'end_escape_together' },
+                ],
+                ko : [
+                    { label : '두 번째 문을 통과한다', next : 'end_truth' },
+                    { label : '지하 창고를 봉인하고 엘레나와 함께 떠난다', next : 'end_escape_together' },
+                ],
+            },
+        },
+        {
+            key : 'cellar_descent',
+            title : { en : 'Alone in the Dark Below', ko : '홀로 내려간 어둠' },
+            text : {
+                en : "You go down alone. The air is cold and smells of salt and rust. Crates line the walls, one pried open to reveal contents that don't belong in a fishing lighthouse. A sound echoes from a passage at the back -- footsteps, or something like them.",
+                ko : '혼자 내려간다. 공기는 차갑고 소금과 녹 냄새가 난다. 벽을 따라 늘어선 상자들, 그중 하나는 뜯겨 열려 어촌 등대에는 어울리지 않는 내용물을 드러내고 있다. 안쪽 통로에서 소리가 울린다 -- 발소리, 혹은 그와 비슷한 무언가.',
+            },
+            endingType : { en : '', ko : '' },
+            choices : {
+                en : [
+                    { label : 'Follow the sound', next : 'end_truth' },
+                    { label : 'Turn back immediately', next : 'end_trapped' },
+                ],
+                ko : [
+                    { label : '소리를 따라간다', next : 'end_truth' },
+                    { label : '즉시 돌아선다', next : 'end_trapped' },
+                ],
+            },
+        },
+        {
+            key : 'end_truth',
+            title : { en : 'What Waited in the Tunnel', ko : '터널 속에서 기다린 것' },
+            endingType : { en : 'Secret Ending', ko : '시크릿 엔딩' },
+            text : {
+                en : "The passage opens into a smuggler's tunnel, and at the end of it, alive, thin, and blinking in torchlight -- Thomas Voss, held for ransom by the very smugglers he'd once turned a blind eye toward. He didn't vanish. He was taken, the night he decided to stop looking away.",
+                ko : '통로는 밀수꾼들의 터널로 이어지고, 그 끝에는 횃불에 눈을 찡그리며 여위었지만 살아있는 토마스 보스가 있다. 한때 못 본 척 눈감아주었던 바로 그 밀수꾼들에게 몸값을 위해 붙잡혀 있었던 것이다. 그는 사라진 게 아니었다 -- 더는 외면하지 않기로 한 그날 밤, 붙잡혀간 것이었다.',
+            },
+            choices : { en : [], ko : [] },
+        },
+        {
+            key : 'end_wait_coastguard',
+            title : { en : 'Swept Clean', ko : '말끔히 치워진 흔적' },
+            endingType : { en : 'Bad Ending', ko : '배드 엔딩' },
+            text : {
+                en : "You report everything and wait offshore. When the coast guard finally raids the lighthouse three days later, the cellar is empty -- swept clean, the crates gone, Elena gone with them. You'll spend a long time wondering which of them was actually collecting keepers.",
+                ko : '모든 것을 신고하고 앞바다에서 대기한다. 사흘 뒤 해안경비대가 마침내 등대를 급습했을 때, 지하 창고는 텅 비어 있다 -- 말끔히 치워졌고, 상자도, 엘레나도 사라진 뒤다. 둘 중 누가 진짜로 등대지기들을 거둬가고 있었는지, 당신은 오랫동안 궁금해할 것이다.',
+            },
+            choices : { en : [], ko : [] },
+        },
+        {
+            key : 'end_escape_together',
+            title : { en : 'Better Left Dark', ko : '어둠 속에 남겨두는 편이' },
+            endingType : { en : 'Bittersweet Ending', ko : '씁쓸달콤한 엔딩' },
+            text : {
+                en : 'You and Elena seal the cellar door and leave that night, taking the evidence with you. The smugglers are caught within the week, but Thomas is never found. Some lights, once you understand what they were really signaling, are better left dark.',
+                ko : '당신과 엘레나는 그날 밤 지하 창고 문을 봉인하고 증거를 챙겨 떠난다. 밀수꾼들은 일주일 안에 붙잡히지만, 토마스는 끝내 발견되지 않는다. 어떤 불빛은, 그것이 실제로 무엇을 신호하고 있었는지 알고 나면, 차라리 꺼둔 채로 두는 편이 낫다.',
+            },
+            choices : { en : [], ko : [] },
+        },
+        {
+            key : 'end_trapped',
+            title : { en : "Should've Brought a Partner", ko : '동행이 있었어야 했다' },
+            endingType : { en : 'Bad Ending', ko : '배드 엔딩' },
+            text : {
+                en : 'You turn to flee, but the footsteps are already behind you. The last thing you see is lantern light, and a voice you don\'t recognize saying, almost kindly, "Should\'ve brought a partner." The lighthouse stays dark for another forty years.',
+                ko : '도망치려 돌아서지만 발소리는 이미 등 뒤에 와 있다. 마지막으로 보이는 것은 랜턴 불빛, 그리고 낯선 목소리가 거의 다정하게 건네는 말이다. "동행이 있었어야지." 등대는 앞으로 40년을 더 어둠 속에 남는다.',
+            },
+            choices : { en : [], ko : [] },
+        },
+    ];
+
+    function seedStoryIfMissing(title, author, description, storyScenes) {
+        if (fn.util.selectFlat({ key : 'story' }).some(function(s) { return s.title === title; })) {
+            return;
+        }
+        var story = fn.data.insert({ key : 'story', data : { title : title, author : author, description : description } });
+        storyScenes.forEach(function(scene) {
+            fn.data.insert({ key : 'scene', data : Object.assign({ storyId : story.id }, scene) });
         });
     }
+
+    seedStoryIfMissing('Signal Lost', 'Claude', 'A branching sci-fi visual novel about waking alone on a derelict ship.', signalLostScenes);
+    seedStoryIfMissing("The Lighthouse Keeper's Secret", 'Claude', 'A mystery about a vanished keeper and a light that signaled more than ships.', lighthouseScenes);
 
     var players = fn.data.select({ key : 'player' });
     var player = players.length ? players[0] : fn.data.insert({ key : 'player', data : { name : 'Reader' } });

@@ -306,8 +306,9 @@
                 tagName : 'div',
                 attribute : { class : '__popup' },
                 style : {
-                    position : 'fixed', top : '70px', left : '50%', transform : 'translateX(-50%)',
-                    width : '320px', background : panelBg, color : text,
+                    position : 'fixed', top : '16px', left : '50%', transform : 'translateX(-50%)',
+                    width : 'calc(100% - 32px)', maxWidth : '340px', maxHeight : 'calc(100% - 32px)', overflowY : 'auto',
+                    boxSizing : 'border-box', background : panelBg, color : text,
                     border : '1px solid ' + dim, borderRadius : '6px', font : '14px/1.5 ' + appFont,
                 },
             });
@@ -625,13 +626,13 @@
             var player = getPlayer();
             var wrap = fn.element.create({ tagName : 'div', style : { padding : '20px' } });
 
-            var header = fn.element.create({ tagName : 'div', style : { display : 'flex', justifyContent : 'space-between', alignItems : 'center', marginBottom : '20px' }, parent : wrap });
+            var header = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', justifyContent : 'space-between', alignItems : 'center', gap : '8px', marginBottom : '20px' }, parent : wrap });
             fn.element.create({ tagName : 'div', text : 'Branchtale', style : { fontWeight : '700', fontSize : '20px', color : accent }, parent : header });
             var btnRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px', alignItems : 'center' }, parent : header });
             fn.element.create({ tagName : 'div', text : player.data.name, style : { fontSize : '12px', color : dim }, parent : btnRow });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Rename',
-                style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
                 event : { click : openRename }, parent : btnRow,
             });
 
@@ -710,9 +711,9 @@
             var choices = getLocalized(scene.choices) || [];
             var wrap = fn.element.create({ tagName : 'div', style : { padding : '20px' } });
 
-            var header = fn.element.create({ tagName : 'div', style : { display : 'flex', justifyContent : 'space-between', alignItems : 'center', marginBottom : '20px' }, parent : wrap });
-            fn.element.create({ tagName : 'div', text : story.data.title + ' -- Reader: ' + player.data.name, style : { fontSize : '12px', color : dim }, parent : header });
-            var btnRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px', alignItems : 'center' }, parent : header });
+            var header = fn.element.create({ tagName : 'div', style : { marginBottom : '20px' }, parent : wrap });
+            fn.element.create({ tagName : 'div', text : story.data.title + ' -- Reader: ' + player.data.name, style : { fontSize : '12px', color : dim, marginBottom : '10px' }, parent : header });
+            var btnRow = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', gap : '8px', alignItems : 'center' }, parent : header });
             var langSelect = fn.element.create({
                 tagName : 'select',
                 style : { padding : '5px 6px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px' },
@@ -725,22 +726,22 @@
             langSelect.value = currentLang;
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Library',
-                style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
                 event : { click : goToLibrary }, parent : btnRow,
             });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Editor',
-                style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
                 event : { click : openEditor }, parent : btnRow,
             });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Endings',
-                style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
                 event : { click : openEndings }, parent : btnRow,
             });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Rename',
-                style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
                 event : { click : openRename }, parent : btnRow,
             });
 
@@ -785,17 +786,17 @@
         layout : function() {
             var wrap = fn.element.create({ tagName : 'div', style : { padding : '20px' } });
 
-            var header = fn.element.create({ tagName : 'div', style : { display : 'flex', justifyContent : 'space-between', alignItems : 'center', marginBottom : '16px' }, parent : wrap });
+            var header = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', justifyContent : 'space-between', alignItems : 'center', gap : '8px', marginBottom : '16px' }, parent : wrap });
             fn.element.create({ tagName : 'div', text : 'Story Editor', style : { fontWeight : '700', fontSize : '18px', color : accent }, parent : header });
-            var editorNav = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px' }, parent : header });
+            var editorNav = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', gap : '8px' }, parent : header });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Library',
-                style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
                 event : { click : goToLibrary }, parent : editorNav,
             });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Back to Story',
-                style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
                 event : { click : closeEditor }, parent : editorNav,
             });
 
