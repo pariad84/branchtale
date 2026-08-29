@@ -298,6 +298,10 @@
     var dim = '#5b6b8c';
     var text = '#e6ecff';
     var appFont = "Georgia, 'Iowan Old Style', 'Times New Roman', serif";
+    var inputStyle = {
+        width : '100%', boxSizing : 'border-box', padding : '8px', font : '14px ' + appFont,
+        background : bg, color : text, border : '1px solid ' + dim, borderRadius : '4px',
+    };
 
     fn.component.layout.set({
         name : 'popup',
@@ -373,11 +377,6 @@
             var el = fn.element.create({ tagName : 'div', attribute : { class : '__form' }, data : opt.data });
             el._.resource = opt.resource;
             el._.inputs = {};
-
-            var inputStyle = {
-                width : '100%', boxSizing : 'border-box', padding : '8px', font : '14px ' + appFont,
-                background : bg, color : text, border : '1px solid ' + dim, borderRadius : '4px',
-            };
 
             opt.resource.columns.forEach(function(column) {
                 if (!column.form) {
@@ -507,7 +506,7 @@
                             title : 'Edit',
                             caller : opt.caller || e.target.closest('.__popup'),
                             render : function(popupEl) {
-                                fn.component.create({ name : 'form', resource : opt.resource, data : data, parent : popupEl.content });
+                                fn.component.create({ name : opt.formName || 'form', resource : opt.resource, data : data, parent : popupEl.content });
                                 fn.component.create({ name : 'save-btn', parent : popupEl.content });
                             },
                         });
@@ -546,6 +545,7 @@
             el._.resource = opt.resource;
             el._.caller = opt.caller;
             el._.readonly = opt.readonly;
+            el._.formName = opt.formName;
             el._.pageSize = opt.pageSize || 10;
             el._.page = 0;
 
@@ -559,7 +559,7 @@
 
                 Array.from(el.tableArea.children).forEach(function(child) { child.remove(); });
                 el.tableArea.appendChild(fn.component._.renderListTable({
-                    resource : el._.resource, datas : pageDatas, caller : el._.caller, readonly : el._.readonly,
+                    resource : el._.resource, datas : pageDatas, caller : el._.caller, readonly : el._.readonly, formName : el._.formName,
                 }));
 
                 if (pageCount > 1) {
@@ -781,6 +781,180 @@
         }
     });
 
+    // A hand-built alternative to the generic schema-driven `form` for Scene specifically --
+    // raw JSON textareas were the only way to enter multi-language title/text/endingType/choices,
+    // which is unreadable for a reader who just wants to write a scene. Same contract as `form`
+    // (a `.__form` element with a `.save()`), so save-btn/fn.util.saveForm need no changes -- only
+    // `fn.util.newButton`/`renderListTable` needed an `opt.formName` to pick this over `form`.
+    // Language tabs switch which language's Title/Text/Ending Type/Choices are being edited;
+    // `draft` holds every language's fields in memory (mutated live by each input's own
+    // listener) so switching tabs never loses unsaved edits, and `.save()` reassembles the
+    // `{lang: value}` shape `fn.data`/the reading screen expect from every language in `draft`.
+    fn.component.layout.set({
+        name : 'scene-form',
+        layout : function(opt = { data : {} }) {
+            var el = fn.element.create({ tagName : 'div', attribute : { class : '__form' }, data : opt.data });
+            el._.data = opt.data;
+
+            var initial = opt.data || {};
+            var seenLangs = {};
+            [ 'title', 'text', 'endingType', 'choices' ].forEach(function(field) {
+                Object.keys(initial[field] || {}).forEach(function(lang) { seenLangs[lang] = true; });
+            });
+            var langs = Object.keys(seenLangs);
+            if (langs.length === 0) {
+                langs = [ 'en' ];
+            }
+            var draft = {};
+            langs.forEach(function(lang) {
+                draft[lang] = {
+                    title : (initial.title || {})[lang] || '',
+                    text : (initial.text || {})[lang] || '',
+                    endingType : (initial.endingType || {})[lang] || '',
+                    choices : ((initial.choices || {})[lang] || []).map(function(c) { return { label : c.label, next : c.next }; }),
+                };
+            });
+            var currentLang = langs[0];
+            var datalistId = 'scene-keys-' + Math.random().toString(36).slice(2);
+
+            var datalist = fn.element.create({ tagName : 'datalist', attribute : { id : datalistId }, parent : el });
+            fn.util.selectFlat({ key : 'scene' }).filter(function(s) { return s.storyId === initial.storyId; }).forEach(function(s) {
+                fn.element.create({ tagName : 'option', attribute : { value : s.key }, parent : datalist });
+            });
+
+            var keyField = fn.element.create({ tagName : 'div', style : { marginBottom : '12px' }, parent : el });
+            fn.element.create({ tagName : 'div', text : 'Key', style : { marginBottom : '4px', color : dim, fontSize : '12px' }, parent : keyField });
+            var keyInput = fn.element.create({ tagName : 'input', attribute : { type : 'text', placeholder : 'e.g. bridge_solo' }, style : inputStyle, parent : keyField });
+            keyInput.value = initial.key || '';
+
+            var langTabs = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', gap : '6px', marginBottom : '12px' }, parent : el });
+            var bodyArea = fn.element.create({ tagName : 'div', parent : el });
+
+            function tabStyle(isActive) {
+                return {
+                    padding : '6px 10px', fontSize : '12px', borderRadius : '4px', cursor : 'pointer',
+                    background : isActive ? accent : bg, color : isActive ? bg : accent,
+                    fontWeight : isActive ? '700' : 'normal', border : '1px solid ' + dim,
+                };
+            }
+
+            function renderLangTabs() {
+                Array.from(langTabs.children).forEach(function(c) { c.remove(); });
+                langs.forEach(function(lang) {
+                    fn.element.create({
+                        tagName : 'button', attribute : { type : 'button' }, text : langLabels[lang] || lang,
+                        style : tabStyle(lang === currentLang),
+                        event : { click : function() { currentLang = lang; renderLangTabs(); renderBody(); } },
+                        parent : langTabs,
+                    });
+                });
+                fn.element.create({
+                    tagName : 'button', attribute : { type : 'button' }, text : '+ Language',
+                    style : { padding : '6px 10px', fontSize : '12px', borderRadius : '4px', cursor : 'pointer', background : bg, color : dim, border : '1px dashed ' + dim },
+                    event : { click : function() {
+                        var code = prompt('Language code (e.g. en, ko, ja):');
+                        if (!code) {
+                            return;
+                        }
+                        code = code.trim().toLowerCase();
+                        if (!code) {
+                            return;
+                        }
+                        if (!draft[code]) {
+                            draft[code] = { title : '', text : '', endingType : '', choices : [] };
+                            langs.push(code);
+                        }
+                        currentLang = code;
+                        renderLangTabs();
+                        renderBody();
+                    } },
+                    parent : langTabs,
+                });
+            }
+
+            function renderBody() {
+                Array.from(bodyArea.children).forEach(function(c) { c.remove(); });
+                var d = draft[currentLang];
+
+                var titleField = fn.element.create({ tagName : 'div', style : { marginBottom : '12px' }, parent : bodyArea });
+                fn.element.create({ tagName : 'div', text : 'Title', style : { marginBottom : '4px', color : dim, fontSize : '12px' }, parent : titleField });
+                var titleInput = fn.element.create({ tagName : 'input', attribute : { type : 'text' }, style : inputStyle, parent : titleField });
+                titleInput.value = d.title;
+                titleInput.addEventListener('input', function() { d.title = titleInput.value; });
+
+                var textField = fn.element.create({ tagName : 'div', style : { marginBottom : '12px' }, parent : bodyArea });
+                fn.element.create({ tagName : 'div', text : 'Text', style : { marginBottom : '4px', color : dim, fontSize : '12px' }, parent : textField });
+                var textInput = fn.element.create({ tagName : 'textarea', style : Object.assign({}, inputStyle, { minHeight : '100px', resize : 'vertical' }), parent : textField });
+                textInput.value = d.text;
+                textInput.addEventListener('input', function() { d.text = textInput.value; });
+
+                var endingField = fn.element.create({ tagName : 'div', style : { marginBottom : '12px' }, parent : bodyArea });
+                fn.element.create({ tagName : 'div', text : 'Ending Type (leave blank if this is not an ending)', style : { marginBottom : '4px', color : dim, fontSize : '12px' }, parent : endingField });
+                var endingInput = fn.element.create({ tagName : 'input', attribute : { type : 'text', placeholder : 'e.g. Good Ending' }, style : inputStyle, parent : endingField });
+                endingInput.value = d.endingType;
+                endingInput.addEventListener('input', function() { d.endingType = endingInput.value; });
+
+                var choicesField = fn.element.create({ tagName : 'div', parent : bodyArea });
+                var choicesLabel = fn.element.create({ tagName : 'div', style : { marginBottom : '6px', color : dim, fontSize : '12px' }, parent : choicesField });
+                var choicesList = fn.element.create({ tagName : 'div', parent : choicesField });
+
+                function renderChoices() {
+                    choicesLabel.textContent = 'Choices' + (d.choices.length === 0 ? ' -- none, so this scene is an ending in ' + (langLabels[currentLang] || currentLang) : '');
+                    Array.from(choicesList.children).forEach(function(c) { c.remove(); });
+                    d.choices.forEach(function(choice, index) {
+                        var row = fn.element.create({ tagName : 'div', style : { marginBottom : '8px', padding : '8px', border : '1px solid ' + dim, borderRadius : '4px' }, parent : choicesList });
+                        var labelInput = fn.element.create({ tagName : 'input', attribute : { type : 'text', placeholder : 'Choice label' }, style : Object.assign({}, inputStyle, { marginBottom : '6px' }), parent : row });
+                        labelInput.value = choice.label || '';
+                        labelInput.addEventListener('input', function() { choice.label = labelInput.value; });
+
+                        var nextRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '6px' }, parent : row });
+                        var nextInput = fn.element.create({ tagName : 'input', attribute : { type : 'text', list : datalistId, placeholder : 'Next scene key' }, style : Object.assign({}, inputStyle, { flex : '1', width : 'auto', minWidth : '0' }), parent : nextRow });
+                        nextInput.value = choice.next || '';
+                        nextInput.addEventListener('input', function() { choice.next = nextInput.value; });
+
+                        fn.element.create({
+                            tagName : 'button', attribute : { type : 'button', title : 'Remove choice' }, text : '✕ Remove',
+                            style : { padding : '8px 10px', flexShrink : '0', background : bg, color : '#f28b82', border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                            event : { click : function() { d.choices.splice(index, 1); renderChoices(); } },
+                            parent : nextRow,
+                        });
+                    });
+                    fn.element.create({
+                        tagName : 'button', attribute : { type : 'button' }, text : '+ Add Choice',
+                        style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                        event : { click : function() { d.choices.push({ label : '', next : '' }); renderChoices(); } },
+                        parent : choicesList,
+                    });
+                }
+
+                renderChoices();
+            }
+
+            renderLangTabs();
+            renderBody();
+
+            el.save = function() {
+                var title = {}, sceneText = {}, endingType = {}, choices = {};
+                langs.forEach(function(lang) {
+                    title[lang] = draft[lang].title;
+                    sceneText[lang] = draft[lang].text;
+                    endingType[lang] = draft[lang].endingType;
+                    choices[lang] = draft[lang].choices.filter(function(c) { return c.label || c.next; });
+                });
+                var data = Object.assign({}, el._.data, {
+                    key : keyInput.value.trim(), title : title, text : sceneText, endingType : endingType, choices : choices,
+                });
+                delete data.id;
+                if (el._.data.id !== undefined) {
+                    return fn.data.update({ key : 'scene', id : el._.data.id, data : data });
+                }
+                return fn.data.insert({ key : 'scene', data : data });
+            };
+
+            return el;
+        }
+    });
+
     fn.component.layout.set({
         name : 'editor',
         layout : function() {
@@ -802,7 +976,7 @@
 
             var toolRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px', marginBottom : '16px', flexWrap : 'wrap', alignItems : 'center' }, parent : wrap });
             fn.util.newButton({
-                text : '+ New Scene', title : 'New Scene', resource : sceneResource,
+                text : '+ New Scene', title : 'New Scene', resource : sceneResource, formName : 'scene-form',
                 data : { storyId : currentStoryId },
                 caller : { refresh : refreshScreen }, parent : toolRow,
                 style : { padding : '8px 12px', fontSize : '13px', background : accent, color : bg, border : 'none', borderRadius : '4px', fontWeight : '700', cursor : 'pointer' },
@@ -826,7 +1000,7 @@
             });
 
             var sceneDatas = fn.util.selectFlat({ key : 'scene' }).filter(function(s) { return s.storyId === currentStoryId; });
-            fn.component.create({ name : 'list', resource : sceneResource, datas : sceneDatas, caller : { refresh : refreshScreen }, pageSize : 8, parent : wrap });
+            fn.component.create({ name : 'list', resource : sceneResource, datas : sceneDatas, caller : { refresh : refreshScreen }, formName : 'scene-form', pageSize : 8, parent : wrap });
 
             return wrap;
         }

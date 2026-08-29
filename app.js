@@ -40,20 +40,16 @@
         ],
     };
 
+    // No `.form` configs here -- Scene is edited through its own hand-built `scene-form` layout
+    // (see layout.js) rather than the generic schema-driven `form`, so only the `.list` columns
+    // the Editor's scene table actually shows are declared.
     var sceneResource = {
         key : 'scene',
         columns : [
-            { name : 'key', label : 'Key', form : { type : 'text' }, list : { type : 'text' } },
+            { name : 'key', label : 'Key', list : { type : 'text' } },
             {
-                name : 'title', label : 'Title (JSON per language)',
-                form : { type : 'text', json : true, placeholder : '{"en":"...","ko":"..."}' },
+                name : 'title', label : 'Title',
                 list : { render : 'function(data){ var t = data.title || {}; return t.en || t[Object.keys(t)[0]] || ""; }' },
-            },
-            { name : 'text', label : 'Text (JSON per language)', form : { type : 'textarea', height : '100px', json : true, placeholder : '{"en":"...","ko":"..."}' } },
-            { name : 'endingType', label : 'Ending Type (JSON per language, {} if not an ending)', form : { type : 'text', json : true, placeholder : '{"en":"...","ko":"..."}' } },
-            {
-                name : 'choices', label : 'Choices (JSON per language: {"lang":[{"label","next"}]} -- [] arrays if this is an ending)',
-                form : { type : 'textarea', height : '160px', json : true, placeholder : '{"en":[{"label":"...","next":"..."}],"ko":[{"label":"...","next":"..."}]}' },
             },
         ],
     };
