@@ -703,47 +703,22 @@
     });
 
     fn.component.layout.set({
-        name : 'story',
+        name : 'story-body',
         layout : function() {
-            var player = getPlayer();
-            var story = fn.data.select({ key : 'story', id : currentStoryId });
             var scene = findScene(currentSceneKey);
             var choices = getLocalized(scene.choices) || [];
-            var wrap = fn.element.create({ tagName : 'div', style : { padding : '20px' } });
+            var wrap = fn.element.create({ tagName : 'div' });
 
-            var header = fn.element.create({ tagName : 'div', style : { marginBottom : '20px' }, parent : wrap });
-            fn.element.create({ tagName : 'div', text : story.data.title + ' -- Reader: ' + player.data.name, style : { fontSize : '12px', color : dim, marginBottom : '10px' }, parent : header });
-            var btnRow = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', gap : '8px', alignItems : 'center' }, parent : header });
             var langSelect = fn.element.create({
                 tagName : 'select',
-                style : { padding : '5px 6px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px' },
+                style : { padding : '5px 6px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', marginBottom : '16px' },
                 event : { change : function(e) { currentLang = e.target.value; refreshScreen(); } },
-                parent : btnRow,
+                parent : wrap,
             });
             Object.keys(scene.title || {}).forEach(function(lang) {
                 fn.element.create({ tagName : 'option', attribute : { value : lang }, text : langLabels[lang] || lang, parent : langSelect });
             });
             langSelect.value = currentLang;
-            fn.element.create({
-                tagName : 'button', attribute : { type : 'button' }, text : 'Library',
-                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
-                event : { click : goToLibrary }, parent : btnRow,
-            });
-            fn.element.create({
-                tagName : 'button', attribute : { type : 'button' }, text : 'Editor',
-                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
-                event : { click : openEditor }, parent : btnRow,
-            });
-            fn.element.create({
-                tagName : 'button', attribute : { type : 'button' }, text : 'Endings',
-                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
-                event : { click : openEndings }, parent : btnRow,
-            });
-            fn.element.create({
-                tagName : 'button', attribute : { type : 'button' }, text : 'Rename',
-                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
-                event : { click : openRename }, parent : btnRow,
-            });
 
             var isEnding = choices.length === 0;
             if (isEnding) {
@@ -956,23 +931,9 @@
     });
 
     fn.component.layout.set({
-        name : 'editor',
+        name : 'editor-body',
         layout : function() {
-            var wrap = fn.element.create({ tagName : 'div', style : { padding : '20px' } });
-
-            var header = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', justifyContent : 'space-between', alignItems : 'center', gap : '8px', marginBottom : '16px' }, parent : wrap });
-            fn.element.create({ tagName : 'div', text : 'Story Editor', style : { fontWeight : '700', fontSize : '18px', color : accent }, parent : header });
-            var editorNav = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', gap : '8px' }, parent : header });
-            fn.element.create({
-                tagName : 'button', attribute : { type : 'button' }, text : 'Library',
-                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
-                event : { click : goToLibrary }, parent : editorNav,
-            });
-            fn.element.create({
-                tagName : 'button', attribute : { type : 'button' }, text : 'Back to Story',
-                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
-                event : { click : closeEditor }, parent : editorNav,
-            });
+            var wrap = fn.element.create({ tagName : 'div' });
 
             var toolRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px', marginBottom : '16px', flexWrap : 'wrap', alignItems : 'center' }, parent : wrap });
             fn.util.newButton({
@@ -1006,12 +967,60 @@
         }
     });
 
+    // The persistent chrome for both Story and Editor: a back-to-Library arrow plus the story
+    // title (the one consistent "home" affordance every screen but Library itself has, replacing
+    // the old ad hoc Library/Editor/Back-to-Story buttons each screen used to carry separately),
+    // Endings/Rename as actions, and a Read/Editor tab row so switching between reading and
+    // editing the current story is a tab switch rather than a "go to another screen" jump.
+    fn.component.layout.set({
+        name : 'story-shell',
+        layout : function() {
+            var story = fn.data.select({ key : 'story', id : currentStoryId });
+            var wrap = fn.element.create({ tagName : 'div', style : { padding : '20px' } });
+
+            var topRow = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', alignItems : 'center', gap : '8px', marginBottom : '16px' }, parent : wrap });
+            fn.element.create({
+                tagName : 'button', attribute : { type : 'button', title : 'Back to Library' }, text : '← Library',
+                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                event : { click : goToLibrary }, parent : topRow,
+            });
+            fn.element.create({ tagName : 'div', text : story.data.title, style : { flex : '1', minWidth : '0', fontWeight : '700', fontSize : '15px', color : accent, overflow : 'hidden', textOverflow : 'ellipsis', whiteSpace : 'nowrap' }, parent : topRow });
+            fn.element.create({
+                tagName : 'button', attribute : { type : 'button' }, text : 'Endings',
+                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                event : { click : openEndings }, parent : topRow,
+            });
+            fn.element.create({
+                tagName : 'button', attribute : { type : 'button' }, text : 'Rename',
+                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                event : { click : openRename }, parent : topRow,
+            });
+
+            var tabRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px', marginBottom : '20px' }, parent : wrap });
+            [ { label : 'Read', tabMode : 'story', onClick : closeEditor }, { label : 'Editor', tabMode : 'editor', onClick : openEditor } ].forEach(function(tab) {
+                var isActive = mode === tab.tabMode;
+                fn.element.create({
+                    tagName : 'button', attribute : { type : 'button' }, text : tab.label,
+                    style : {
+                        flex : '1', padding : '10px', fontSize : '13px', borderRadius : '4px', cursor : 'pointer',
+                        background : isActive ? accent : bg, color : isActive ? bg : accent,
+                        fontWeight : isActive ? '700' : 'normal', border : '1px solid ' + dim,
+                    },
+                    event : { click : tab.onClick }, parent : tabRow,
+                });
+            });
+
+            fn.component.create({ name : mode === 'editor' ? 'editor-body' : 'story-body', parent : wrap });
+
+            return wrap;
+        }
+    });
+
     fn.component.layout.set({
         name : 'screen',
         layout : function() {
             var wrap = fn.element.create({ tagName : 'div' });
-            var name = mode === 'editor' ? 'editor' : mode === 'story' ? 'story' : 'library';
-            fn.component.create({ name : name, parent : wrap });
+            fn.component.create({ name : mode === 'library' ? 'library' : 'story-shell', parent : wrap });
             return wrap;
         }
     });
