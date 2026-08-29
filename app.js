@@ -1,21 +1,34 @@
-// Signal Lost -- Player + Scene + Ending. Scene is the entire story graph, seeded once (10 story
-// beats + 5 endings) as the default story, referenced by its own `key` field rather than
-// fn.data's auto-increment id -- see layout.js's goToScene/findScene for why. It's a real,
-// editable resource from here on (the Editor screen in layout.js), so this seed is a starting
-// point, not fixed content: the default story is you waking alone on the derelict Kestrel, where
-// finding Mira, trusting the ship's AI (ORACLE), and how far you push into the cargo hold's
-// secret all branch independently into five distinct endings -- but a reader can rewrite any of
-// it, add scenes, or replace the whole thing via Download/Upload JSON.
+// Branchtale -- Player + Story + Scene + Ending. Multiple stories can exist side by side (the
+// Library screen in layout.js lists them, "+ New Story" creates one); every Scene and Ending row
+// carries a `storyId` scoping it to its own story, since a scene's `key` (see below) is only
+// unique *within* a story -- every story is free to have its own 'start'. "Signal Lost" is seeded
+// once, below, as this app's first story (10 beats + 5 endings) so the Library isn't empty on
+// first load, referenced by its own `key` field rather than fn.data's auto-increment id -- see
+// layout.js's goToScene/findScene for why. It's a real, editable resource from here on (the
+// Editor screen in layout.js), so this seed is a starting point, not fixed content: the default
+// story is you waking alone on the derelict Kestrel, where finding Mira, trusting the ship's AI
+// (ORACLE), and how far you push into the cargo hold's secret all branch independently into five
+// distinct endings -- but a reader can rewrite any of it, add scenes, or replace the whole thing
+// via Download/Upload JSON.
 // `title`/`text`/`endingType`/`choices` are each stored as a `{lang: value}` object (see
 // layout.js's getLocalized) so a scene can carry several language versions authored together in
 // one save -- the seed below ships English and Korean for every scene.
-(function signalLostApp() {
+(function branchtaleApp() {
     var fn = window.fn;
 
     var playerResource = {
         key : 'player',
         columns : [
             { name : 'name', label : 'Name', form : { type : 'text' } },
+        ],
+    };
+
+    var storyResource = {
+        key : 'story',
+        columns : [
+            { name : 'title', label : 'Title', form : { type : 'text' }, list : { type : 'text' } },
+            { name : 'author', label : 'Author', form : { type : 'text' }, list : { type : 'text' } },
+            { name : 'description', label : 'Description', form : { type : 'textarea', height : '60px' }, list : { type : 'text' } },
         ],
     };
 
@@ -288,9 +301,17 @@
         },
     ];
 
-    if (fn.data.select({ key : 'scene' }).length === 0) {
+    if (fn.data.select({ key : 'story' }).length === 0) {
+        var signalLost = fn.data.insert({
+            key : 'story',
+            data : {
+                title : 'Signal Lost',
+                author : 'Claude',
+                description : 'A branching sci-fi visual novel about waking alone on a derelict ship.',
+            },
+        });
         scenes.forEach(function(scene) {
-            fn.data.insert({ key : 'scene', data : scene });
+            fn.data.insert({ key : 'scene', data : Object.assign({ storyId : signalLost.id }, scene) });
         });
     }
 
@@ -300,6 +321,7 @@
     fn.component.create({
         name : 'game',
         playerResource : playerResource,
+        storyResource : storyResource,
         endingResource : endingResource,
         sceneResource : sceneResource,
         playerId : player.id,

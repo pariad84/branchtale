@@ -19,6 +19,9 @@
     // Was duplicated as newButton() in every example's app.js -- opens a popup with a blank
     // form + save-btn for the given resource. opt.style is the one thing that's expected to
     // differ per example's visual theme; everything else about "open an add form" is identical.
+    // opt.data optionally presets fields the new row should carry beyond what the form itself
+    // collects (e.g. a parent id the user never sees a field for) -- branchtale's Editor uses
+    // this to stamp a new Scene with the Story it belongs to.
     fn.util.newButton = function(opt) {
         return fn.element.create({
             tagName : 'button',
@@ -33,7 +36,7 @@
                         title : opt.title,
                         caller : opt.caller,
                         render : function(popupEl) {
-                            fn.component.create({ name : 'form', resource : opt.resource, data : {}, parent : popupEl.content });
+                            fn.component.create({ name : 'form', resource : opt.resource, data : opt.data || {}, parent : popupEl.content });
                             fn.component.create({ name : 'save-btn', parent : popupEl.content });
                         },
                     });
@@ -47,15 +50,17 @@
     // resource/data -- see the `form` layout in any example's layout.js), then refreshes the
     // caller. Only "how the popup/window/screen closes" is expected to differ per example's
     // chrome, so that part stays a callback (opt.onSaved), not something this helper decides.
+    // The saved row is passed to both, since a caller may need it (branchtale's "+ New Story"
+    // jumps straight into editing the row it just created).
     fn.util.saveForm = function(opt) {
         var popup = opt.popup;
         var form = popup.querySelector('.__form');
-        form.save();
+        var saved = form.save();
         if (popup._.caller) {
-            popup._.caller.refresh();
+            popup._.caller.refresh(saved);
         }
         if (opt.onSaved) {
-            opt.onSaved(popup);
+            opt.onSaved(popup, saved);
         }
     };
 })();
