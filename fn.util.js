@@ -21,7 +21,10 @@
     // differ per example's visual theme; everything else about "open an add form" is identical.
     // opt.data optionally presets fields the new row should carry beyond what the form itself
     // collects (e.g. a parent id the user never sees a field for) -- branchtale's Editor uses
-    // this to stamp a new Scene with the Story it belongs to.
+    // this to stamp a new Scene with the Story it belongs to. opt.formName picks a resource-
+    // specific form layout instead of the generic schema-driven `form` (branchtale's Scene uses
+    // its own `scene-form` instead of raw JSON fields) -- any layout named here just needs to
+    // build a `.__form` element with a `.save()`, same contract as `form`.
     fn.util.newButton = function(opt) {
         return fn.element.create({
             tagName : 'button',
@@ -36,7 +39,7 @@
                         title : opt.title,
                         caller : opt.caller,
                         render : function(popupEl) {
-                            fn.component.create({ name : 'form', resource : opt.resource, data : opt.data || {}, parent : popupEl.content });
+                            fn.component.create({ name : opt.formName || 'form', resource : opt.resource, data : opt.data || {}, parent : popupEl.content });
                             fn.component.create({ name : 'save-btn', parent : popupEl.content });
                         },
                     });
