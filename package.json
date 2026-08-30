@@ -1,0 +1,12 @@
+{
+  "name": "branchtale",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A shared library of branching visual novels.",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
