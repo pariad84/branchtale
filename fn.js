@@ -96,7 +96,11 @@
     // existed, so a zero-setup preview still works; served through server/index.js (http://)
     // talks to that server instead, which is itself either the JSON file or Postgres depending
     // on whether it has DATABASE_URL set -- this file never needs to know or care which.
-    var useServer = location.protocol !== 'file:';
+    // GitHub Pages (*.github.io) gets the same localStorage fallback as file:// even though it's
+    // http(s):// -- it's static hosting with no server/index.js behind it, so /api/data/* would
+    // just 404 there, not fail loudly enough to notice (fn.data._.read already treats a non-200
+    // as "no rows" rather than an error, which is right for a server that's simply empty).
+    var useServer = location.protocol !== 'file:' && !/(^|\.)github\.io$/.test(location.hostname);
 
     fn.data._.read = function(opt = {}) {
         if (useServer) {

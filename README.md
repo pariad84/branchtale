@@ -7,10 +7,11 @@ now its first seeded story rather than the whole app.
 It's built on `fn.js` (the seven-essentials CRUD framework core) and `fn.util.js` (shared
 CRUD/UI-wiring helpers), both vendored here as-is from mini-framework, plus this app's own
 `layout.js` and `app.js`. `fn.data.*` picks its backend by how the page was loaded, not a
-setting: opened directly (`file://`) it falls back to your browser's own `localStorage` (a
-zero-setup preview, but only *your* browser ever sees what you add); served through the small
-Node server in `server/` (`http://`) it talks to that server instead, so every reader hits the
-same shared store -- see "Running it" below.
+setting: opened directly (`file://`) or on GitHub Pages (`pariad84.github.io`, static hosting
+with no server behind it) it falls back to your browser's own `localStorage` (a zero-setup
+preview, but only *your* browser ever sees what you add); served through the small Node server in
+`server/` (any other `http://`/`https://`) it talks to that server instead, so every reader hits
+the same shared store -- see "Running it" below.
 
 Player + Story + Scene + Ending. The Library screen lists every Story a reader has added --
 "+ New Story" creates one (title/author/description) and drops you straight into its Editor with
