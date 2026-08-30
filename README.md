@@ -38,11 +38,18 @@ npm start
 ```
 
 Then open http://localhost:3000 -- **not** `index.html` directly; `fn.data.*` now talks to the
-server over HTTP, so opening the file via `file://` won't work. The server keeps one shared JSON
-file (`server/db.json`, git-ignored, created on first run) that every browser pointed at it reads
-and writes through, so stories one person adds now show up for everyone hitting the same server --
-this is deliberately local-only for now (no deploy, no accounts: anyone reaching the server can
-read or write anything, by design, see "Known limitations" below), not yet a public site.
+server over HTTP, so opening the file via `file://` won't work. By default the server keeps one
+shared JSON file (`server/db.json`, git-ignored, created on first run); every browser pointed at
+it reads and writes through it, so stories one person adds now show up for everyone hitting the
+same server -- this is deliberately local-only for now (no deploy, no accounts: anyone reaching
+the server can read or write anything, by design, see "Known limitations" below), not yet a
+public site.
+
+To use Postgres instead of the JSON file, copy `.env.example` to `.env` and set `DATABASE_URL`
+(`postgres://user:password@host:port/dbname`) -- `server/db.js` picks it up automatically (via
+`dotenv`) and creates its one table (`data_rows`) on first run if it doesn't exist yet. Never
+commit `.env` or a connection string into a file that gets pushed anywhere (it's already
+git-ignored). Omit `DATABASE_URL` entirely to keep using `server/db.json`, no database needed.
 
 ## Known limitations
 
