@@ -309,39 +309,63 @@
         });
     }
 
-    var bg = '#070b14';
-    var panelBg = '#101b33';
-    var accent = '#4fd8e8';
-    var dim = '#5b6b8c';
-    var text = '#e6ecff';
-    var appFont = "Georgia, 'Iowan Old Style', 'Times New Roman', serif";
+    var bg = '#ffffff';
+    var panelBg = '#f8f9fb';
+    var accent = '#2563eb';
+    var dim = '#6b7280';
+    var border = '#e2e8f0';
+    var danger = '#dc2626';
+    var text = '#111827';
+    var appFont = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
     var inputStyle = {
         width : '100%', boxSizing : 'border-box', padding : '8px', font : '14px ' + appFont,
-        background : bg, color : text, border : '1px solid ' + dim, borderRadius : '4px',
+        background : bg, color : text, border : '1px solid ' + border, borderRadius : '4px',
     };
 
     fn.component.layout.set({
         name : 'popup',
         layout : function(opt = {}) {
+            // A conventional modal: a dimmed backdrop behind a centered white card, closing on a
+            // backdrop click same as most modal libraries. Every caller (close-btn, save-btn, the
+            // Library's Delete Story button) already calls `.remove()` on the `.__popup` element
+            // itself, found via `.closest('.__popup')` -- rather than change all of them to know
+            // about the backdrop too, popup.remove is overridden on this one instance to remove
+            // the backdrop instead, so every existing call site keeps working unchanged.
+            var backdrop = fn.element.create({
+                tagName : 'div',
+                attribute : { class : '__popup-backdrop' },
+                style : {
+                    position : 'fixed', top : '0', right : '0', bottom : '0', left : '0',
+                    background : 'rgba(17, 24, 39, 0.5)', overflowY : 'auto',
+                    display : 'flex', justifyContent : 'center', padding : '40px 16px', zIndex : '1000',
+                },
+            });
+            backdrop.addEventListener('click', function(e) {
+                if (e.target === backdrop) {
+                    backdrop.remove();
+                }
+            });
+
             var popup = fn.element.create({
                 tagName : 'div',
                 attribute : { class : '__popup' },
                 style : {
-                    position : 'fixed', top : '16px', left : '50%', transform : 'translateX(-50%)',
-                    width : 'calc(100% - 32px)', maxWidth : '340px', maxHeight : 'calc(100% - 32px)', overflowY : 'auto',
-                    boxSizing : 'border-box', background : panelBg, color : text,
-                    border : '1px solid ' + dim, borderRadius : '6px', font : '14px/1.5 ' + appFont,
+                    width : '100%', maxWidth : '340px', height : 'fit-content', boxSizing : 'border-box',
+                    background : bg, color : text, border : '1px solid ' + border, borderRadius : '8px',
+                    boxShadow : '0 10px 40px rgba(17, 24, 39, 0.2)', font : '14px/1.5 ' + appFont,
                 },
+                parent : backdrop,
             });
+            popup.remove = function() { backdrop.remove(); };
 
             var header = fn.element.create({
                 parent : popup, tagName : 'div',
-                style : { display : 'flex', justifyContent : 'space-between', alignItems : 'center', padding : '10px 14px', borderBottom : '1px solid ' + dim },
+                style : { display : 'flex', justifyContent : 'space-between', alignItems : 'center', padding : '12px 16px', borderBottom : '1px solid ' + border },
             });
-            fn.element.create({ parent : header, tagName : 'div', text : opt.title || 'Popup', style : { fontWeight : '700', color : accent } });
+            fn.element.create({ parent : header, tagName : 'div', text : opt.title || 'Popup', style : { fontWeight : '600', fontSize : '15px', color : text } });
             fn.component.create({ name : 'close-btn', parent : header });
 
-            var content = fn.element.create({ parent : popup, tagName : 'div', style : { padding : '14px' } });
+            var content = fn.element.create({ parent : popup, tagName : 'div', style : { padding : '16px' } });
 
             popup.content = content;
             popup._.resource = opt.resource;
@@ -352,7 +376,7 @@
                 opt.render(popup);
             }
 
-            document.body.appendChild(popup);
+            document.body.appendChild(backdrop);
             return popup;
         }
     });
@@ -364,7 +388,7 @@
                 tagName : 'button',
                 attribute : { type : 'button', title : 'Close' },
                 text : '✕',
-                style : { background : 'transparent', border : 'none', color : accent, fontSize : '14px', cursor : 'pointer' },
+                style : { background : 'transparent', border : 'none', color : dim, fontSize : '16px', cursor : 'pointer' },
                 event : { click : function(e) { e.target.closest('.__popup').remove(); } },
             });
         }
@@ -503,7 +527,7 @@
             fn.element.create({
                 tagName : 'th',
                 text : column.label || column.name,
-                style : { textAlign : 'left', padding : '6px 10px', borderBottom : '1px solid ' + dim, color : dim, fontWeight : 'normal' },
+                style : { textAlign : 'left', padding : '6px 10px', borderBottom : '1px solid ' + border, color : dim, fontWeight : 'normal' },
                 parent : headRow,
             });
         });
@@ -535,7 +559,7 @@
                 if (!column.list) {
                     return;
                 }
-                var cell = fn.element.create({ tagName : 'td', style : { padding : '6px 10px', borderBottom : '1px solid #1c2947' }, parent : row });
+                var cell = fn.element.create({ tagName : 'td', style : { padding : '6px 10px', borderBottom : '1px solid ' + border }, parent : row });
                 if (column.list.render) {
                     var rendered = fn.render({ source : column.list.render, data : data });
                     if (rendered instanceof HTMLElement) {
@@ -603,7 +627,7 @@
                 tagName : 'button',
                 attribute : { type : 'button' },
                 text : 'Prev',
-                style : { padding : '6px 12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer', visibility : opt.page > 0 ? 'visible' : 'hidden' },
+                style : { padding : '6px 12px', background : bg, color : accent, border : '1px solid ' + border, borderRadius : '4px', cursor : 'pointer', visibility : opt.page > 0 ? 'visible' : 'hidden' },
                 event : { click : function(e) {
                     var list = e.target.closest('.__list');
                     list._.page = Math.max(0, list._.page - 1);
@@ -623,7 +647,7 @@
                 tagName : 'button',
                 attribute : { type : 'button' },
                 text : 'Next',
-                style : { padding : '6px 12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer', visibility : opt.page < opt.pageCount - 1 ? 'visible' : 'hidden' },
+                style : { padding : '6px 12px', background : bg, color : accent, border : '1px solid ' + border, borderRadius : '4px', cursor : 'pointer', visibility : opt.page < opt.pageCount - 1 ? 'visible' : 'hidden' },
                 event : { click : function(e) {
                     var list = e.target.closest('.__list');
                     var pageCount = Math.max(1, Math.ceil(list._.datas.length / list._.pageSize));
@@ -641,18 +665,17 @@
         name : 'library',
         layout : function() {
             var player = getPlayer();
-            var wrap = fn.element.create({ tagName : 'div', style : { padding : '20px' } });
+            var wrap = fn.element.create({ tagName : 'div', style : { padding : '20px', maxWidth : '640px', margin : '0 auto' } });
 
-            var header = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', justifyContent : 'space-between', alignItems : 'center', gap : '8px', marginBottom : '20px' }, parent : wrap });
-            fn.element.create({ tagName : 'div', text : 'Branchtale', style : { fontWeight : '700', fontSize : '20px', color : accent }, parent : header });
-            var btnRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px', alignItems : 'center' }, parent : header });
-            fn.element.create({ tagName : 'div', text : player.data.name, style : { fontSize : '12px', color : dim }, parent : btnRow });
+            var header = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', justifyContent : 'space-between', alignItems : 'center', gap : '12px', marginBottom : '24px' }, parent : wrap });
+            fn.element.create({ tagName : 'div', text : 'Branchtale', style : { fontWeight : '700', fontSize : '22px', color : text }, parent : header });
+            var btnRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '16px', alignItems : 'center' }, parent : header });
+            fn.element.create({ tagName : 'div', text : player.data.name, style : { fontSize : '13px', color : dim }, parent : btnRow });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Rename',
-                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '0', fontSize : '13px', background : 'transparent', color : accent, border : 'none', cursor : 'pointer' },
                 event : { click : openRename }, parent : btnRow,
             });
-
             fn.util.newButton({
                 text : '+ New Story', title : 'New Story', resource : storyResource,
                 data : { author : player.data.name },
@@ -664,28 +687,32 @@
                         refreshScreen();
                     }
                 } },
-                parent : wrap,
-                style : { padding : '10px 16px', width : '100%', marginBottom : '16px', background : accent, color : bg, border : 'none', borderRadius : '4px', fontWeight : '700', cursor : 'pointer' },
+                parent : btnRow,
+                style : { padding : '8px 14px', fontSize : '13px', background : accent, color : bg, border : 'none', borderRadius : '6px', fontWeight : '600', cursor : 'pointer' },
             });
+
+            var list = fn.element.create({ tagName : 'div', style : { border : '1px solid ' + border, borderRadius : '8px', overflow : 'hidden' }, parent : wrap });
 
             var stories = fn.util.selectFlat({ key : 'story' });
             if (stories.length === 0) {
-                fn.element.create({ tagName : 'div', text : 'No stories yet. Click "+ New Story" to write one.', style : { color : dim, fontSize : '13px' }, parent : wrap });
+                fn.element.create({ tagName : 'div', text : 'No stories yet. Click "+ New Story" to write one.', style : { padding : '16px', color : dim, fontSize : '13px' }, parent : list });
             }
-            stories.forEach(function(story) {
+            stories.forEach(function(story, index) {
                 var card = fn.element.create({
                     tagName : 'div',
-                    style : { padding : '14px', marginBottom : '10px', background : panelBg, border : '1px solid ' + dim, borderRadius : '6px', cursor : 'pointer' },
+                    style : { display : 'flex', alignItems : 'flex-start', gap : '12px', padding : '16px', cursor : 'pointer', borderTop : index === 0 ? 'none' : '1px solid ' + border },
                     event : { click : function() { openStory(story.id); } },
-                    parent : wrap,
+                    parent : list,
                 });
-                var cardHeader = fn.element.create({ tagName : 'div', style : { display : 'flex', justifyContent : 'space-between', alignItems : 'flex-start' }, parent : card });
-                var titleCol = fn.element.create({ tagName : 'div', parent : cardHeader });
-                fn.element.create({ tagName : 'div', text : story.title, style : { fontWeight : '700', fontSize : '16px', color : accent }, parent : titleCol });
-                fn.element.create({ tagName : 'div', text : 'by ' + (story.author || 'Anonymous'), style : { fontSize : '11px', color : dim, marginTop : '2px' }, parent : titleCol });
+                var titleCol = fn.element.create({ tagName : 'div', style : { flex : '1', minWidth : '0' }, parent : card });
+                fn.element.create({ tagName : 'div', text : story.title, style : { fontWeight : '600', fontSize : '15px', color : accent }, parent : titleCol });
+                fn.element.create({ tagName : 'div', text : 'by ' + (story.author || 'Anonymous'), style : { fontSize : '12px', color : dim, marginTop : '2px', marginBottom : '6px' }, parent : titleCol });
+                if (story.description) {
+                    fn.element.create({ tagName : 'div', text : story.description, style : { fontSize : '13px', color : text }, parent : titleCol });
+                }
                 fn.element.create({
                     tagName : 'button', attribute : { type : 'button' }, text : 'Edit',
-                    style : { padding : '4px 10px', fontSize : '11px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                    style : { padding : '4px 10px', fontSize : '12px', flexShrink : '0', background : bg, color : dim, border : '1px solid ' + border, borderRadius : '4px', cursor : 'pointer' },
                     event : { click : function(e) {
                         e.stopPropagation();
                         fn.component.create({
@@ -697,7 +724,7 @@
                                 fn.component.create({ name : 'save-btn', parent : popupEl.content });
                                 fn.element.create({
                                     tagName : 'button', attribute : { type : 'button' }, text : 'Delete Story',
-                                    style : { padding : '8px 16px', marginTop : '8px', width : '100%', background : 'transparent', color : '#f28b82', border : '1px solid #f28b82', borderRadius : '4px', cursor : 'pointer' },
+                                    style : { padding : '8px 16px', marginTop : '8px', width : '100%', background : 'transparent', color : danger, border : '1px solid ' + danger, borderRadius : '4px', cursor : 'pointer' },
                                     event : { click : function(e2) {
                                         deleteStory(story.id);
                                         e2.target.closest('.__popup').remove();
@@ -707,11 +734,8 @@
                             },
                         });
                     } },
-                    parent : cardHeader,
+                    parent : card,
                 });
-                if (story.description) {
-                    fn.element.create({ tagName : 'div', text : story.description, style : { fontSize : '13px', color : text, marginTop : '8px' }, parent : card });
-                }
             });
 
             return wrap;
@@ -744,7 +768,7 @@
 
             var langSelect = fn.element.create({
                 tagName : 'select',
-                style : { padding : '5px 6px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', marginBottom : '16px' },
+                style : { padding : '5px 6px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + border, borderRadius : '4px', marginBottom : '16px' },
                 event : { change : function(e) { currentLang = e.target.value; refreshScreen(); } },
                 parent : wrap,
             });
@@ -777,7 +801,7 @@
                     tagName : 'button', attribute : { type : 'button' }, text : choice.label,
                     style : {
                         display : 'block', width : '100%', textAlign : 'left', padding : '12px 14px', marginBottom : '10px',
-                        background : panelBg, color : text, border : '1px solid ' + dim, borderRadius : '6px',
+                        background : panelBg, color : text, border : '1px solid ' + border, borderRadius : '6px',
                         font : '14px ' + appFont, cursor : 'pointer',
                     },
                     event : { click : function() { goToScene(choice.next); } },
@@ -842,7 +866,7 @@
                 return {
                     padding : '6px 10px', fontSize : '12px', borderRadius : '4px', cursor : 'pointer',
                     background : isActive ? accent : bg, color : isActive ? bg : accent,
-                    fontWeight : isActive ? '700' : 'normal', border : '1px solid ' + dim,
+                    fontWeight : isActive ? '700' : 'normal', border : '1px solid ' + border,
                 };
             }
 
@@ -910,7 +934,7 @@
                     choicesLabel.textContent = 'Choices' + (d.choices.length === 0 ? ' -- none, so this scene is an ending in ' + (langLabels[currentLang] || currentLang) : '');
                     Array.from(choicesList.children).forEach(function(c) { c.remove(); });
                     d.choices.forEach(function(choice, index) {
-                        var row = fn.element.create({ tagName : 'div', style : { marginBottom : '8px', padding : '8px', border : '1px solid ' + dim, borderRadius : '4px' }, parent : choicesList });
+                        var row = fn.element.create({ tagName : 'div', style : { marginBottom : '8px', padding : '8px', border : '1px solid ' + border, borderRadius : '4px' }, parent : choicesList });
                         var labelInput = fn.element.create({ tagName : 'input', attribute : { type : 'text', placeholder : 'Choice label' }, style : Object.assign({}, inputStyle, { marginBottom : '6px' }), parent : row });
                         labelInput.value = choice.label || '';
                         labelInput.addEventListener('input', function() { choice.label = labelInput.value; });
@@ -922,14 +946,14 @@
 
                         fn.element.create({
                             tagName : 'button', attribute : { type : 'button', title : 'Remove choice' }, text : '✕ Remove',
-                            style : { padding : '8px 10px', flexShrink : '0', background : bg, color : '#f28b82', border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                            style : { padding : '8px 10px', flexShrink : '0', background : bg, color : danger, border : '1px solid ' + border, borderRadius : '4px', cursor : 'pointer' },
                             event : { click : function() { d.choices.splice(index, 1); renderChoices(); } },
                             parent : nextRow,
                         });
                     });
                     fn.element.create({
                         tagName : 'button', attribute : { type : 'button' }, text : '+ Add Choice',
-                        style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                        style : { padding : '6px 10px', fontSize : '12px', background : bg, color : accent, border : '1px solid ' + border, borderRadius : '4px', cursor : 'pointer' },
                         event : { click : function() { d.choices.push({ label : '', next : '' }); renderChoices(); } },
                         parent : choicesList,
                     });
@@ -978,12 +1002,12 @@
             });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Check for Loops',
-                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + border, borderRadius : '4px', cursor : 'pointer' },
                 event : { click : openLoopCheck }, parent : toolRow,
             });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Download JSON',
-                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + border, borderRadius : '4px', cursor : 'pointer' },
                 event : { click : exportStory }, parent : toolRow,
             });
             fn.element.create({
@@ -1028,41 +1052,43 @@
         layout : function() {
             var route = parseHash();
             var story = fn.data.select({ key : 'story', id : route.storyId });
-            var wrap = fn.element.create({ tagName : 'div', style : { padding : '20px' } });
+            var wrap = fn.element.create({ tagName : 'div' });
 
-            var topRow = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', alignItems : 'center', gap : '8px', marginBottom : '16px' }, parent : wrap });
+            var topRow = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', alignItems : 'center', gap : '16px', padding : '14px 20px', borderBottom : '1px solid ' + border }, parent : wrap });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button', title : 'Back to Library' }, text : '← Library',
-                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '4px 0', fontSize : '13px', background : 'transparent', color : dim, border : 'none', cursor : 'pointer' },
                 event : { click : goToLibrary }, parent : topRow,
             });
-            fn.element.create({ tagName : 'div', text : story.data.title, style : { flex : '1', minWidth : '0', fontWeight : '700', fontSize : '15px', color : accent, overflow : 'hidden', textOverflow : 'ellipsis', whiteSpace : 'nowrap' }, parent : topRow });
+            fn.element.create({ tagName : 'div', text : story.data.title, style : { flex : '1', minWidth : '0', fontWeight : '600', fontSize : '15px', color : text, overflow : 'hidden', textOverflow : 'ellipsis', whiteSpace : 'nowrap' }, parent : topRow });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Endings',
-                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '4px 0', fontSize : '13px', background : 'transparent', color : accent, border : 'none', cursor : 'pointer' },
                 event : { click : openEndings }, parent : topRow,
             });
             fn.element.create({
                 tagName : 'button', attribute : { type : 'button' }, text : 'Rename',
-                style : { padding : '8px 12px', fontSize : '13px', background : bg, color : accent, border : '1px solid ' + dim, borderRadius : '4px', cursor : 'pointer' },
+                style : { padding : '4px 0', fontSize : '13px', background : 'transparent', color : accent, border : 'none', cursor : 'pointer' },
                 event : { click : openRename }, parent : topRow,
             });
 
-            var tabRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px', marginBottom : '20px' }, parent : wrap });
+            var tabRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '20px', padding : '0 20px', borderBottom : '1px solid ' + border }, parent : wrap });
             [ { label : 'Read', tabMode : 'story', onClick : closeEditor }, { label : 'Editor', tabMode : 'editor', onClick : openEditor } ].forEach(function(tab) {
                 var isActive = route.mode === tab.tabMode;
                 fn.element.create({
                     tagName : 'button', attribute : { type : 'button' }, text : tab.label,
                     style : {
-                        flex : '1', padding : '10px', fontSize : '13px', borderRadius : '4px', cursor : 'pointer',
-                        background : isActive ? accent : bg, color : isActive ? bg : accent,
-                        fontWeight : isActive ? '700' : 'normal', border : '1px solid ' + dim,
+                        padding : '10px 4px', marginBottom : '-1px', fontSize : '14px', background : 'transparent', cursor : 'pointer',
+                        color : isActive ? accent : dim, fontWeight : isActive ? '600' : 'normal',
+                        border : 'none', borderBottom : isActive ? '2px solid ' + accent : '2px solid transparent',
                     },
                     event : { click : tab.onClick }, parent : tabRow,
                 });
             });
 
-            fn.component.create({ name : route.mode === 'editor' ? 'editor-body' : 'story-body', parent : wrap });
+            var bodyArea = fn.element.create({ tagName : 'div', style : { padding : '20px' }, parent : wrap });
+
+            fn.component.create({ name : route.mode === 'editor' ? 'editor-body' : 'story-body', parent : bodyArea });
 
             return wrap;
         }
