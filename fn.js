@@ -84,23 +84,46 @@
     // 3. fn.data.select/insert/update/delete -- CRUD abstraction. Every layout below only ever
     // talks to these four functions, so swapping localStorage for a real backend later only
     // means rewriting this block, not any layout -- verified true: this now talks to server/
-    // instead of localStorage, and nothing outside this block changed. The one condition that
-    // keeps that claim free (see server/index.js's own comment) is staying synchronous: a real
-    // fetch/Promise-based swap would mean every `var rows = fn.data.select(...)` call site
-    // (throughout list/form and every app built on them) becoming async too, which is a real
-    // rewrite this project deliberately hasn't done speculatively.
+    // instead of localStorage when a server is actually serving the page, and nothing outside
+    // this block changed. The one condition that keeps that claim free (see server/index.js's
+    // own comment) is staying synchronous: a real fetch/Promise-based swap would mean every
+    // `var rows = fn.data.select(...)` call site (throughout list/form and every app built on
+    // them) becoming async too, which is a real rewrite this project deliberately hasn't done
+    // speculatively.
+    //
+    // Which backend depends on how the page was loaded, not a setting: opened directly
+    // (file://, no server involved) falls back to localStorage exactly like before server/
+    // existed, so a zero-setup preview still works; served through server/index.js (http://)
+    // talks to that server instead, which is itself either the JSON file or Postgres depending
+    // on whether it has DATABASE_URL set -- this file never needs to know or care which.
+    // GitHub Pages (*.github.io) gets the same localStorage fallback as file:// even though it's
+    // http(s):// -- it's static hosting with no server/index.js behind it, so /api/data/* would
+    // just 404 there, not fail loudly enough to notice (fn.data._.read already treats a non-200
+    // as "no rows" rather than an error, which is right for a server that's simply empty).
+    var useServer = location.protocol !== 'file:' && !/(^|\.)github\.io$/.test(location.hostname);
+
     fn.data._.read = function(opt = {}) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', '/api/data/' + opt.key, false);
-        xhr.send(null);
-        return xhr.status === 200 && xhr.responseText ? JSON.parse(xhr.responseText) : [];
+        if (useServer) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/api/data/' + opt.key, false);
+            xhr.send(null);
+            return xhr.status === 200 && xhr.responseText ? JSON.parse(xhr.responseText) : [];
+        }
+        var raw = typeof(Storage) !== "undefined" ? localStorage.getItem(opt.key) : null;
+        return raw ? JSON.parse(raw) : [];
     };
 
     fn.data._.write = function(opt = {}) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('PUT', '/api/data/' + opt.key, false);
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.send(JSON.stringify(opt.rows));
+        if (useServer) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('PUT', '/api/data/' + opt.key, false);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.send(JSON.stringify(opt.rows));
+            return;
+        }
+        if (typeof(Storage) !== "undefined") {
+            localStorage.setItem(opt.key, JSON.stringify(opt.rows));
+        }
     };
 
     fn.data.select = function(opt = {}) {

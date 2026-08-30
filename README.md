@@ -6,8 +6,12 @@ now its first seeded story rather than the whole app.
 
 It's built on `fn.js` (the seven-essentials CRUD framework core) and `fn.util.js` (shared
 CRUD/UI-wiring helpers), both vendored here as-is from mini-framework, plus this app's own
-`layout.js` and `app.js`. `fn.data.*` talks to a small local server (`server/`) instead of
-`localStorage` now, so every reader hits the same shared JSON store -- see "Running it" below.
+`layout.js` and `app.js`. `fn.data.*` picks its backend by how the page was loaded, not a
+setting: opened directly (`file://`) or on GitHub Pages (`pariad84.github.io`, static hosting
+with no server behind it) it falls back to your browser's own `localStorage` (a zero-setup
+preview, but only *your* browser ever sees what you add); served through the small Node server in
+`server/` (any other `http://`/`https://`) it talks to that server instead, so every reader hits
+the same shared store -- see "Running it" below.
 
 Player + Story + Scene + Ending. The Library screen lists every Story a reader has added --
 "+ New Story" creates one (title/author/description) and drops you straight into its Editor with
@@ -32,18 +36,21 @@ back through choices/tabs/stories instead of leaving the app.
 
 ## Running it
 
+Just want to try it alone, nothing shared? Open `index.html` directly in a browser -- it uses
+your browser's own `localStorage`, same as before this project had a server at all.
+
+To actually share a library with other people:
+
 ```
 npm install
 npm start
 ```
 
-Then open http://localhost:3000 -- **not** `index.html` directly; `fn.data.*` now talks to the
-server over HTTP, so opening the file via `file://` won't work. By default the server keeps one
-shared JSON file (`server/db.json`, git-ignored, created on first run); every browser pointed at
-it reads and writes through it, so stories one person adds now show up for everyone hitting the
-same server -- this is deliberately local-only for now (no deploy, no accounts: anyone reaching
-the server can read or write anything, by design, see "Known limitations" below), not yet a
-public site.
+Then open http://localhost:3000. By default the server keeps one shared JSON file
+(`server/db.json`, git-ignored, created on first run); every browser pointed at it reads and
+writes through it, so stories one person adds now show up for everyone hitting the same server --
+this is deliberately local-only for now (no deploy, no accounts: anyone reaching the server can
+read or write anything, by design, see "Known limitations" below), not yet a public site.
 
 To use Postgres instead of the JSON file, copy `.env.example` to `.env` and set `DATABASE_URL`
 (`postgres://user:password@host:port/dbname`) -- `server/db.js` picks it up automatically (via
