@@ -723,8 +723,24 @@
         layout : function() {
             var route = parseHash();
             var scene = findScene(route.storyId, route.sceneKey);
-            var choices = getLocalized(scene.choices) || [];
             var wrap = fn.element.create({ tagName : 'div' });
+
+            if (!scene) {
+                fn.element.create({ tagName : 'div', text : 'Scene Not Found', style : { fontWeight : '700', fontSize : '18px', color : accent, marginBottom : '10px' }, parent : wrap });
+                fn.element.create({
+                    tagName : 'div', text : 'The scene "' + route.sceneKey + '" doesn\'t exist in this story -- a choice may point to a key that was renamed or never created.',
+                    style : { fontSize : '14px', color : dim, marginBottom : '20px' }, parent : wrap,
+                });
+                fn.element.create({
+                    tagName : 'button', attribute : { type : 'button' }, text : 'Back to Start',
+                    style : { padding : '10px 16px', width : '100%', background : accent, color : bg, border : 'none', borderRadius : '4px', fontWeight : '700', cursor : 'pointer' },
+                    event : { click : function() { goToScene('start'); } },
+                    parent : wrap,
+                });
+                return wrap;
+            }
+
+            var choices = getLocalized(scene.choices) || [];
 
             var langSelect = fn.element.create({
                 tagName : 'select',
@@ -979,7 +995,24 @@
             });
 
             var sceneDatas = fn.util.selectFlat({ key : 'scene' }).filter(function(s) { return s.storyId === storyId; });
-            fn.component.create({ name : 'list', resource : sceneResource, datas : sceneDatas, caller : { refresh : refreshScreen }, formName : 'scene-form', pageSize : 8, parent : wrap });
+
+            var searchInput = fn.element.create({
+                tagName : 'input',
+                attribute : { type : 'text', placeholder : 'Search scenes by key or title...' },
+                style : Object.assign({}, inputStyle, { marginBottom : '12px' }),
+                parent : wrap,
+            });
+
+            var sceneList = fn.component.create({ name : 'list', resource : sceneResource, datas : sceneDatas, caller : { refresh : refreshScreen }, formName : 'scene-form', pageSize : 8, parent : wrap });
+
+            searchInput.addEventListener('input', function() {
+                var q = searchInput.value.trim().toLowerCase();
+                sceneList._.datas = !q ? sceneDatas : sceneDatas.filter(function(s) {
+                    return s.key.toLowerCase().indexOf(q) !== -1 || getLocalized(s.title).toLowerCase().indexOf(q) !== -1;
+                });
+                sceneList._.page = 0;
+                sceneList.refresh();
+            });
 
             return wrap;
         }
