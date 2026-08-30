@@ -83,16 +83,24 @@
 
     // 3. fn.data.select/insert/update/delete -- CRUD abstraction. Every layout below only ever
     // talks to these four functions, so swapping localStorage for a real backend later only
-    // means rewriting this block, not any layout.
+    // means rewriting this block, not any layout -- verified true: this now talks to server/
+    // instead of localStorage, and nothing outside this block changed. The one condition that
+    // keeps that claim free (see server/index.js's own comment) is staying synchronous: a real
+    // fetch/Promise-based swap would mean every `var rows = fn.data.select(...)` call site
+    // (throughout list/form and every app built on them) becoming async too, which is a real
+    // rewrite this project deliberately hasn't done speculatively.
     fn.data._.read = function(opt = {}) {
-        var raw = typeof(Storage) !== "undefined" ? localStorage.getItem(opt.key) : null;
-        return raw ? JSON.parse(raw) : [];
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/data/' + opt.key, false);
+        xhr.send(null);
+        return xhr.status === 200 && xhr.responseText ? JSON.parse(xhr.responseText) : [];
     };
 
     fn.data._.write = function(opt = {}) {
-        if (typeof(Storage) !== "undefined") {
-            localStorage.setItem(opt.key, JSON.stringify(opt.rows));
-        }
+        var xhr = new XMLHttpRequest();
+        xhr.open('PUT', '/api/data/' + opt.key, false);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify(opt.rows));
     };
 
     fn.data.select = function(opt = {}) {
