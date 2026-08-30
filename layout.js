@@ -10,8 +10,10 @@
 // your own story means clicking a row (or "+ New Scene") and editing it like any other resource.
 // Scenes reference each other by their own `key` field (a stable string like 'bridge_solo'), not
 // by fn.data's auto-increment id, since the graph is hand- or reader-written and needs stable
-// targets for `choice.next` -- goToScene looks a scene up by that key (scoped to currentStoryId)
-// via fn.util.selectFlat + .find rather than fn.data.select's id lookup. `choices` is stored
+// targets for `choice.next` -- goToScene looks a scene up by that key (scoped to the story the
+// current route names) via fn.util.selectFlat + .find rather than fn.data.select's id lookup.
+// Which story/scene/tab is showing is itself a route (see parseHash below), not module state.
+// `choices` is stored
 // as a real array (same as every other resource field), but its form field carries a
 // `column.form.json: true` flag this file's own `form` layout understands: populate the textarea
 // with `JSON.stringify(value, null, 2)` instead of the raw value, and `JSON.parse` it back on
@@ -54,12 +56,31 @@
     var endingResource = null;
     var sceneResource = null;
     var playerId = null;
-    var rootArea = null;
-    var currentStoryId = null;
-    var currentSceneKey = 'start';
-    var mode = 'library';
+    var routeEl = null;
     var currentLang = 'en';
     var langLabels = { en : 'English', ko : '한국어' };
+
+    // Which story/scene/tab is showing is a real route (fn.util.route in fn.util.js), not module
+    // state -- '#/' is the Library, '#/story/<id>' reads that story starting at 'start',
+    // '#/story/<id>/scene/<key>' a specific scene, '#/story/<id>/editor' its Editor tab. That
+    // means the physical back button steps back through scenes/tabs/stories instead of leaving
+    // the app, and a scene mid-story is a real, shareable/reloadable URL.
+    function parseHash() {
+        var hash = location.hash;
+        var m = hash.match(/^#\/story\/(\d+)\/editor$/);
+        if (m) {
+            return { mode : 'editor', storyId : Number(m[1]) };
+        }
+        m = hash.match(/^#\/story\/(\d+)\/scene\/([^/]+)$/);
+        if (m) {
+            return { mode : 'story', storyId : Number(m[1]), sceneKey : decodeURIComponent(m[2]) };
+        }
+        m = hash.match(/^#\/story\/(\d+)$/);
+        if (m) {
+            return { mode : 'story', storyId : Number(m[1]), sceneKey : 'start' };
+        }
+        return { mode : 'library' };
+    }
 
     function getLocalized(obj) {
         if (!obj) {
@@ -78,35 +99,28 @@
         return fn.data.select({ key : 'player', id : playerId });
     }
 
-    function findScene(key) {
-        return fn.util.selectFlat({ key : 'scene' }).find(function(scene) { return scene.storyId === currentStoryId && scene.key === key; });
+    function findScene(storyId, key) {
+        return fn.util.selectFlat({ key : 'scene' }).find(function(scene) { return scene.storyId === storyId && scene.key === key; });
     }
 
     function refreshScreen() {
-        fn.component.refresh({ name : 'screen', parent : rootArea });
+        routeEl.refresh();
     }
 
     function openEditor() {
-        mode = 'editor';
-        refreshScreen();
+        location.hash = '#/story/' + parseHash().storyId + '/editor';
     }
 
     function closeEditor() {
-        mode = 'story';
-        refreshScreen();
+        location.hash = '#/story/' + parseHash().storyId;
     }
 
     function openStory(storyId) {
-        currentStoryId = storyId;
-        currentSceneKey = 'start';
-        mode = 'story';
-        refreshScreen();
+        location.hash = '#/story/' + storyId;
     }
 
     function goToLibrary() {
-        currentStoryId = null;
-        mode = 'library';
-        refreshScreen();
+        location.hash = '#/';
     }
 
     function seedStartScene(storyId) {
@@ -142,8 +156,9 @@
     }
 
     function exportStory() {
-        var story = fn.data.select({ key : 'story', id : currentStoryId });
-        var scenes = fn.util.selectFlat({ key : 'scene' }).filter(function(s) { return s.storyId === currentStoryId; }).map(function(s) {
+        var storyId = parseHash().storyId;
+        var story = fn.data.select({ key : 'story', id : storyId });
+        var scenes = fn.util.selectFlat({ key : 'scene' }).filter(function(s) { return s.storyId === storyId; }).map(function(s) {
             return { key : s.key, title : s.title, text : s.text, endingType : s.endingType || {}, choices : s.choices };
         });
         var blob = new Blob([ JSON.stringify(scenes, null, 2) ], { type : 'application/json' });
@@ -169,16 +184,16 @@
                 alert('Expected a JSON array of scenes, including one with key "start".');
                 return;
             }
-            fn.data.select({ key : 'scene' }).filter(function(row) { return row.data.storyId === currentStoryId; }).forEach(function(row) {
+            var storyId = parseHash().storyId;
+            fn.data.select({ key : 'scene' }).filter(function(row) { return row.data.storyId === storyId; }).forEach(function(row) {
                 fn.data.delete({ key : 'scene', id : row.id });
             });
             parsed.forEach(function(scene) {
                 fn.data.insert({
                     key : 'scene',
-                    data : { storyId : currentStoryId, key : scene.key, title : scene.title, text : scene.text, endingType : scene.endingType || {}, choices : scene.choices || {} },
+                    data : { storyId : storyId, key : scene.key, title : scene.title, text : scene.text, endingType : scene.endingType || {}, choices : scene.choices || {} },
                 });
             });
-            currentSceneKey = 'start';
             refreshScreen();
         };
         reader.readAsText(file);
@@ -190,7 +205,8 @@
     // reported by title. Purely informational (see the file header) -- never blocks save/import.
     function findCycles() {
         var byKey = {};
-        fn.util.selectFlat({ key : 'scene' }).filter(function(s) { return s.storyId === currentStoryId; }).forEach(function(s) { byKey[s.key] = s; });
+        var storyId = parseHash().storyId;
+        fn.util.selectFlat({ key : 'scene' }).filter(function(s) { return s.storyId === storyId; }).forEach(function(s) { byKey[s.key] = s; });
 
         var cycles = [];
         var visited = {};
@@ -259,13 +275,13 @@
     }
 
     function goToScene(key) {
-        currentSceneKey = key;
-        var scene = findScene(key);
+        var storyId = parseHash().storyId;
+        var scene = findScene(storyId, key);
         var choices = getLocalized(scene.choices) || [];
         if (choices.length === 0) {
-            fn.data.insert({ key : 'ending', data : { storyId : currentStoryId, endingTitle : getLocalized(scene.title), endingType : getLocalized(scene.endingType) } });
+            fn.data.insert({ key : 'ending', data : { storyId : storyId, endingTitle : getLocalized(scene.title), endingType : getLocalized(scene.endingType) } });
         }
-        refreshScreen();
+        location.hash = '#/story/' + storyId + '/scene/' + encodeURIComponent(key);
     }
 
     function openRename() {
@@ -286,7 +302,8 @@
             name : 'popup',
             title : 'Endings Reached',
             render : function(popupEl) {
-                var datas = fn.util.selectFlat({ key : 'ending' }).filter(function(e) { return e.storyId === currentStoryId; }).slice().reverse();
+                var storyId = parseHash().storyId;
+                var datas = fn.util.selectFlat({ key : 'ending' }).filter(function(e) { return e.storyId === storyId; }).slice().reverse();
                 fn.component.create({ name : 'list', resource : endingResource, datas : datas, readonly : true, parent : popupEl.content });
             },
         });
@@ -642,11 +659,10 @@
                 caller : { refresh : function(savedStory) {
                     if (savedStory) {
                         seedStartScene(savedStory.id);
-                        currentStoryId = savedStory.id;
-                        currentSceneKey = 'start';
-                        mode = 'editor';
+                        location.hash = '#/story/' + savedStory.id + '/editor';
+                    } else {
+                        refreshScreen();
                     }
-                    refreshScreen();
                 } },
                 parent : wrap,
                 style : { padding : '10px 16px', width : '100%', marginBottom : '16px', background : accent, color : bg, border : 'none', borderRadius : '4px', fontWeight : '700', cursor : 'pointer' },
@@ -705,7 +721,8 @@
     fn.component.layout.set({
         name : 'story-body',
         layout : function() {
-            var scene = findScene(currentSceneKey);
+            var route = parseHash();
+            var scene = findScene(route.storyId, route.sceneKey);
             var choices = getLocalized(scene.choices) || [];
             var wrap = fn.element.create({ tagName : 'div' });
 
@@ -933,12 +950,13 @@
     fn.component.layout.set({
         name : 'editor-body',
         layout : function() {
+            var storyId = parseHash().storyId;
             var wrap = fn.element.create({ tagName : 'div' });
 
             var toolRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px', marginBottom : '16px', flexWrap : 'wrap', alignItems : 'center' }, parent : wrap });
             fn.util.newButton({
                 text : '+ New Scene', title : 'New Scene', resource : sceneResource, formName : 'scene-form',
-                data : { storyId : currentStoryId },
+                data : { storyId : storyId },
                 caller : { refresh : refreshScreen }, parent : toolRow,
                 style : { padding : '8px 12px', fontSize : '13px', background : accent, color : bg, border : 'none', borderRadius : '4px', fontWeight : '700', cursor : 'pointer' },
             });
@@ -960,7 +978,7 @@
                 parent : toolRow,
             });
 
-            var sceneDatas = fn.util.selectFlat({ key : 'scene' }).filter(function(s) { return s.storyId === currentStoryId; });
+            var sceneDatas = fn.util.selectFlat({ key : 'scene' }).filter(function(s) { return s.storyId === storyId; });
             fn.component.create({ name : 'list', resource : sceneResource, datas : sceneDatas, caller : { refresh : refreshScreen }, formName : 'scene-form', pageSize : 8, parent : wrap });
 
             return wrap;
@@ -975,7 +993,8 @@
     fn.component.layout.set({
         name : 'story-shell',
         layout : function() {
-            var story = fn.data.select({ key : 'story', id : currentStoryId });
+            var route = parseHash();
+            var story = fn.data.select({ key : 'story', id : route.storyId });
             var wrap = fn.element.create({ tagName : 'div', style : { padding : '20px' } });
 
             var topRow = fn.element.create({ tagName : 'div', style : { display : 'flex', flexWrap : 'wrap', alignItems : 'center', gap : '8px', marginBottom : '16px' }, parent : wrap });
@@ -998,7 +1017,7 @@
 
             var tabRow = fn.element.create({ tagName : 'div', style : { display : 'flex', gap : '8px', marginBottom : '20px' }, parent : wrap });
             [ { label : 'Read', tabMode : 'story', onClick : closeEditor }, { label : 'Editor', tabMode : 'editor', onClick : openEditor } ].forEach(function(tab) {
-                var isActive = mode === tab.tabMode;
+                var isActive = route.mode === tab.tabMode;
                 fn.element.create({
                     tagName : 'button', attribute : { type : 'button' }, text : tab.label,
                     style : {
@@ -1010,17 +1029,8 @@
                 });
             });
 
-            fn.component.create({ name : mode === 'editor' ? 'editor-body' : 'story-body', parent : wrap });
+            fn.component.create({ name : route.mode === 'editor' ? 'editor-body' : 'story-body', parent : wrap });
 
-            return wrap;
-        }
-    });
-
-    fn.component.layout.set({
-        name : 'screen',
-        layout : function() {
-            var wrap = fn.element.create({ tagName : 'div' });
-            fn.component.create({ name : mode === 'library' ? 'library' : 'story-shell', parent : wrap });
             return wrap;
         }
     });
@@ -1039,8 +1049,10 @@
                 style : { maxWidth : '480px', margin : '0 auto', minHeight : '100vh', background : bg, color : text, font : '14px/1.5 ' + appFont },
             });
 
-            rootArea = fn.element.create({ tagName : 'div', parent : shell });
-            refreshScreen();
+            routeEl = fn.util.route({
+                resolve : function() { return parseHash().mode === 'library' ? 'library' : 'story-shell'; },
+                parent : shell,
+            });
 
             return shell;
         }
